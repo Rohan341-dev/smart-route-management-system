@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 const COLORS = ['#3b76ff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function Dashboard() {
-  const { vehicles, drivers, students, routes, driverAlerts, sosAlerts, activityLogs, trips, driverMonitorState } = useStore();
+  const { vehicles, drivers, students, routes, driverAlerts, sosAlerts, activityLogs, trips } = useStore();
 
   const movingVehicles = vehicles.filter(v => v.status === 'moving').length;
   const stoppedVehicles = vehicles.filter(v => v.status === 'stopped').length;

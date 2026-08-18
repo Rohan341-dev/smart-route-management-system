@@ -76,7 +76,7 @@ export interface Route {
   totalStudents: number;
   estimatedTime: string;
   distance: string;
-  status: 'active' | 'completed' | 'scheduled';
+  status: 'active' | 'in_progress' | 'completed' | 'scheduled';
   startTime?: string;
   endTime?: string;
 }
