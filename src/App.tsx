@@ -15,9 +15,10 @@ import Notifications from './pages/Notifications';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Trips from './pages/Trips';
+import Driver from './pages/Driver';
 import DemoPanel from './components/DemoPanel';
 
-function App() {
+function AdminApp() {
   const { sidebarOpen, currentPage, demoModeActive, simulateBusMovement, sosAlerts } = useStore();
   const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
 
@@ -81,6 +82,31 @@ function App() {
       <DemoPanel />
     </div>
   );
+}
+
+function App() {
+  const [isDriverPage, setIsDriverPage] = useState(false);
+
+  useEffect(() => {
+    const checkPath = () => {
+      setIsDriverPage(window.location.pathname === '/driver');
+    };
+    checkPath();
+    window.addEventListener('popstate', checkPath);
+    return () => window.removeEventListener('popstate', checkPath);
+  }, []);
+
+  useEffect(() => {
+    if (window.location.pathname === '/driver') {
+      window.history.pushState({}, '', '/driver');
+    }
+  }, []);
+
+  if (isDriverPage) {
+    return <Driver />;
+  }
+
+  return <AdminApp />;
 }
 
 export default App;

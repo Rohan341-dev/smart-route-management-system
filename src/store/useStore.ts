@@ -44,6 +44,8 @@ interface AppState {
   markNotificationRead: (id: string) => void;
   acknowledgeAlert: (id: string) => void;
   decrementEscalationTimer: () => void;
+  updateDriverGPS: (driverId: string, vehicleId: string, gps: { latitude: number; longitude: number; speed: number; heading: number }) => void;
+  triggerDrowsiness: () => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -236,4 +238,56 @@ export const useStore = create<AppState>((set, get) => ({
       ...sos, escalationTimer: Math.max(0, sos.escalationTimer - 1)
     } : sos)
   })),
+
+  updateDriverGPS: (driverId, vehicleId, gps) => set((s) => ({
+    vehicles: s.vehicles.map(v => v.id === vehicleId ? {
+      ...v,
+      currentLat: gps.latitude,
+      currentLng: gps.longitude,
+      speed: Math.round(gps.speed * 3.6),
+      heading: gps.heading,
+      lastUpdate: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      status: 'moving' as const,
+    } : v),
+    drivers: s.drivers.map(d => d.id === driverId ? {
+      ...d,
+      currentLat: gps.latitude,
+      currentLng: gps.longitude,
+      status: 'on_duty' as const,
+    } : d),
+  })),
+
+  triggerDrowsiness: () => set((s) => {
+    const vehicle = s.vehicles[0];
+    const driver = s.drivers.find(d => d.id === 'DRV-07') || s.drivers[0];
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return {
+      monitoringState: {
+        ...s.monitoringState,
+        status: 'drowsiness_alert',
+        eyesClosed: true,
+        eyesClosedStart: Date.now(),
+        drowsinessScore: 0.95,
+        faceDetected: true,
+      },
+      driverAlerts: [{
+        id: `DA-${Date.now()}`,
+        driverId: driver.id,
+        vehicleId: vehicle.id,
+        type: 'drowsiness' as const,
+        severity: 'high' as const,
+        message: 'Driver drowsiness detected - eyes closed for 5 seconds',
+        time: now,
+        acknowledged: false,
+      }, ...s.driverAlerts],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'alert',
+        message: `Drowsiness detected for ${driver.fullName} in ${vehicle.id}`,
+        time: now,
+        icon: 'alert-triangle',
+        severity: 'warning' as const,
+      }, ...s.activityLogs],
+    };
+  }),
 }));

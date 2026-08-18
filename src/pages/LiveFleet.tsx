@@ -49,8 +49,10 @@ export default function LiveFleet() {
 
             {/* Vehicle Markers */}
             {vehicles.map((vehicle) => {
-              const x = ((vehicle.lng - 85.28) / 0.15) * 800 + 100;
-              const y = (1 - (vehicle.lat - 27.66) / 0.12) * 500 + 50;
+              const vLng = vehicle.currentLng || vehicle.lng;
+              const vLat = vehicle.currentLat || vehicle.lat;
+              const x = ((vLng - 85.28) / 0.15) * 800 + 100;
+              const y = (1 - (vLat - 27.66) / 0.12) * 500 + 50;
               const isSelected = selectedVehicle === vehicle.id;
 
               return (
@@ -161,12 +163,13 @@ export default function LiveFleet() {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400">GPS</p>
-                  <p className="text-xs text-white">{selected.lat.toFixed(4)}°N</p>
-                  <p className="text-xs text-white">{selected.lng.toFixed(4)}°E</p>
+                  <p className="text-xs text-white">{(selected.currentLat || selected.lat).toFixed(4)}°N</p>
+                  <p className="text-xs text-white">{(selected.currentLng || selected.lng).toFixed(4)}°E</p>
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400">Route</p>
-                  <p className="text-xs text-white">{selected.assignedRoute}</p>
+                  <p className="text-xs text-white">{selected.routeName || selected.assignedRoute}</p>
+                  {selected.lastUpdate && <p className="text-[10px] text-gray-400">Updated: {selected.lastUpdate}</p>}
                 </div>
               </div>
             </div>

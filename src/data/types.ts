@@ -1,5 +1,5 @@
 export type VehicleStatus = 'moving' | 'stopped' | 'idle' | 'delayed' | 'offline' | 'emergency' | 'route_deviation';
-export type DriverStatus = 'active' | 'inactive' | 'alert' | 'drowsy' | 'emergency';
+export type DriverStatus = 'active' | 'inactive' | 'alert' | 'drowsy' | 'emergency' | 'on_duty';
 export type StudentStatus = 'waiting' | 'picked_up' | 'on_bus' | 'dropped' | 'absent' | 'emergency';
 export type AlertType = 'drowsiness' | 'overspeed' | 'harsh_braking' | 'route_deviation' | 'driver_offline';
 export type SOSStatus = 'active' | 'acknowledged' | 'escalating' | 'resolved' | 'false_alarm';
@@ -24,9 +24,14 @@ export interface Vehicle {
   fitnessExpiry: string;
   lat: number;
   lng: number;
+  currentLat: number;
+  currentLng: number;
   speed: number;
   heading: number;
   currentStudents: number;
+  lastUpdate?: string;
+  routeName?: string;
+  plateNumber?: string;
 }
 
 export interface Driver {
@@ -49,6 +54,8 @@ export interface Driver {
   eyeStatus: DriverEyeStatus;
   attention: DriverAttention;
   drowsinessDuration: number;
+  currentLat?: number;
+  currentLng?: number;
 }
 
 export interface Student {
