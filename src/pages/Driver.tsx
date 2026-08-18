@@ -293,9 +293,30 @@ export default function Driver() {
 
       {screen === 'monitoring' && (
         <div className="flex-1 flex flex-col">
-          <div className="relative bg-black" style={{ height: '240px' }}>
-            <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
+          <div className="relative bg-black" style={{ height: '280px' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transform: 'scaleX(-1)',
+              }}
+            />
+            <canvas
+              ref={canvasRef}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                transform: 'scaleX(-1)',
+              }}
+            />
 
             {/* Loading overlay */}
             {faceDetection.isModelLoading && (
