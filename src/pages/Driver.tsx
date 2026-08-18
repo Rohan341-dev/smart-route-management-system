@@ -62,6 +62,13 @@ export default function Driver() {
     try {
       if (videoRef.current && canvasRef.current) {
         await faceDetection.startDetection(videoRef.current, canvasRef.current);
+        // Start WebRTC sharing after camera is ready
+        setTimeout(() => {
+          const stream = faceDetection.getStream();
+          if (stream) {
+            webrtc.startAsDriver(stream);
+          }
+        }, 1000);
       }
       setCameraPermission(true);
       setPermissionStep('location');
@@ -70,7 +77,7 @@ export default function Driver() {
       console.error('Camera start failed:', err);
       return false;
     }
-  }, [faceDetection]);
+  }, [faceDetection, webrtc]);
 
   const requestLocation = useCallback(async () => {
     const granted = await gps.requestPermission();
@@ -436,6 +443,10 @@ export default function Driver() {
             <div className="flex items-center gap-1">
               <Volume2 className="w-3 h-3 text-gray-400" />
               <span className={`w-1.5 h-1.5 rounded-full ${buzzer.isReady ? 'bg-green-400' : 'bg-red-400'}`}></span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Video className="w-3 h-3 text-gray-400" />
+              <span className={`w-1.5 h-1.5 rounded-full ${webrtc.connectionState === 'connected' ? 'bg-green-400' : webrtc.connectionState === 'connecting' ? 'bg-amber-400' : 'bg-red-400'}`}></span>
             </div>
           </div>
           <span className="text-[9px] text-gray-500">{selectedVehicle.id}</span>

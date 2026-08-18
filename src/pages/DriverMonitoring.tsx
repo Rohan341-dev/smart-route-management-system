@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
+import LiveCameraFeed from '../components/LiveCameraFeed';
 import { Eye, EyeOff, AlertTriangle, CheckCircle, Zap, Shield, Activity, Clock } from 'lucide-react';
 
 export default function DriverMonitoring() {
@@ -32,89 +33,8 @@ export default function DriverMonitoring() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Camera Feed Simulation */}
-        <div className="glass-card p-6">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Eye className="w-4 h-4 text-electric-400" />
-            Driver Camera Feed — {activeDriver?.id || 'DRV-07'}
-          </h3>
-          <div className="relative bg-navy-800 rounded-2xl overflow-hidden aspect-video">
-            {/* Simulated camera view */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className={`w-48 h-48 rounded-full border-4 ${
-                monitoringState.drowsinessDetected ? 'border-red-500' :
-                monitoringState.buzzerActive ? 'border-amber-500' :
-                monitoringState.eyesOpen ? 'border-emerald-500' : 'border-orange-500'
-              } flex items-center justify-center`}>
-                {/* Face representation */}
-                <div className="relative">
-                  <div className="w-24 h-24 rounded-full bg-navy-600 flex items-center justify-center">
-                    <span className="text-4xl">👤</span>
-                  </div>
-                  {/* Eyes */}
-                  <div className="absolute top-8 left-0 right-0 flex justify-center gap-6">
-                    <div className={`w-4 h-3 rounded-full ${monitoringState.eyesOpen ? 'bg-white' : 'bg-navy-800 border border-white/30'}`}>
-                      {monitoringState.eyesOpen && <div className="w-2 h-2 bg-navy-800 rounded-full mx-auto mt-0.5"></div>}
-                    </div>
-                    <div className={`w-4 h-3 rounded-full ${monitoringState.eyesOpen ? 'bg-white' : 'bg-navy-800 border border-white/30'}`}>
-                      {monitoringState.eyesOpen && <div className="w-2 h-2 bg-navy-800 rounded-full mx-auto mt-0.5"></div>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Status overlay */}
-            <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-              <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${
-                monitoringState.eyesOpen ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white animate-pulse'
-              }`}>
-                <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
-                {monitoringState.eyesOpen ? 'LIVE' : 'ALERT'}
-              </span>
-              <span className="text-[10px] text-white bg-black/50 px-2 py-1 rounded">CAM-007</span>
-            </div>
-
-            {/* Eye closure timer */}
-            {!monitoringState.eyesOpen && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                <div className={`px-4 py-2 rounded-xl text-center ${
-                  timer >= 5 ? 'bg-red-600' : timer >= 3 ? 'bg-amber-600' : 'bg-orange-600'
-                }`}>
-                  <p className="text-[10px] text-white/80">EYES CLOSED</p>
-                  <p className="text-2xl font-bold text-white">{timer}:00</p>
-                  {timer >= 3 && timer < 5 && <p className="text-[10px] text-white">WARNING — Stay alert!</p>}
-                  {timer >= 5 && <p className="text-[10px] text-white font-bold">DROWSINESS DETECTED</p>}
-                </div>
-              </div>
-            )}
-
-            {monitoringState.eyesOpen && !monitoringState.drowsinessDetected && (
-              <div className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                <div className="px-4 py-2 rounded-xl bg-emerald-600/80 text-center">
-                  <p className="text-xs text-white font-medium">Driver Alert — Eyes Open</p>
-                  <p className="text-[10px] text-white/80">Monitoring Active</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Eye closure progress bar */}
-          <div className="mt-4">
-            <div className="flex justify-between text-[10px] text-gray-400 mb-1">
-              <span>Eye Closure Duration</span>
-              <span>{timer}s / 5s</span>
-            </div>
-            <div className="h-2 bg-navy-600 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-1000 ${
-                  timer >= 5 ? 'bg-red-500' : timer >= 3 ? 'bg-amber-500' : 'bg-emerald-500'
-                }`}
-                style={{ width: `${(timer / 5) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
+        {/* Live Camera Feed */}
+        <LiveCameraFeed vehicleId="BUS-107" driverName={activeDriver?.fullName || 'Suresh Magar'} />
 
         {/* Monitoring Panel */}
         <div className="space-y-4">
