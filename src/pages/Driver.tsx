@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useFaceDetection } from '../hooks/useFaceDetection';
 import { useGPS } from '../hooks/useGPS';
 import { useBuzzer } from '../hooks/useBuzzer';
+import { useWebRTC } from '../hooks/useWebRTC';
 import { useStore } from '../store/useStore';
 import {
   Camera, MapPin, Volume2, Brain, Shield, AlertTriangle,
   Phone, PhoneOff, Eye, EyeOff, CheckCircle, XCircle,
-  Navigation, Clock, Wifi, WifiOff, Zap
+  Navigation, Clock, Wifi, WifiOff, Zap, Video
 } from 'lucide-react';
 
 type PermissionStep = 'camera' | 'location' | 'sound' | 'ready';
@@ -17,6 +18,7 @@ export default function Driver() {
   const faceDetection = useFaceDetection();
   const gps = useGPS();
   const buzzer = useBuzzer();
+  const webrtc = useWebRTC();
 
   const [screen, setScreen] = useState<DriverScreen>('permissions');
   const [permissionStep, setPermissionStep] = useState<PermissionStep>('camera');
@@ -58,20 +60,14 @@ export default function Driver() {
 
   const startCamera = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 320, height: 240 },
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        if (canvasRef.current) {
-          await faceDetection.startDetection(videoRef.current, canvasRef.current);
-        }
+      if (videoRef.current && canvasRef.current) {
+        await faceDetection.startDetection(videoRef.current, canvasRef.current);
       }
       setCameraPermission(true);
       setPermissionStep('location');
       return true;
-    } catch {
+    } catch (err: any) {
+      console.error('Camera start failed:', err);
       return false;
     }
   }, [faceDetection]);

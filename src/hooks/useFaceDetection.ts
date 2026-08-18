@@ -15,23 +15,11 @@ export interface FaceDetectionState {
 const LEFT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398];
 const RIGHT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246];
 
-const LEFT_IRIS = [468, 469, 470, 471, 472];
-const RIGHT_IRIS = [473, 474, 475, 476, 477];
-
 function calculateEAR(landmarks: any[], eyeIndices: number[]): number {
   const points = eyeIndices.map(i => landmarks[i]);
-  const verticalDist1 = Math.hypot(
-    points[3].x - points[1].x,
-    points[3].y - points[1].y
-  );
-  const verticalDist2 = Math.hypot(
-    points[5].x - points[2].x,
-    points[5].y - points[2].y
-  );
-  const horizontalDist = Math.hypot(
-    points[5].x - points[0].x,
-    points[5].y - points[0].y
-  );
+  const verticalDist1 = Math.hypot(points[3].x - points[1].x, points[3].y - points[1].y);
+  const verticalDist2 = Math.hypot(points[5].x - points[2].x, points[5].y - points[2].y);
+  const horizontalDist = Math.hypot(points[5].x - points[0].x, points[5].y - points[0].y);
   if (horizontalDist === 0) return 1;
   return (verticalDist1 + verticalDist2) / (2.0 * horizontalDist);
 }
@@ -40,8 +28,8 @@ export function useFaceDetection() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const faceMeshRef = useRef<any>(null);
-  const cameraRef = useRef<any>(null);
-  const animFrameRef = useRef<number>(0);
+  const streamRef = useRef<MediaStream | null>(null);
+  const rafRef = useRef<number>(0);
   const earHistoryRef = useRef<number[]>([]);
 
   const [state, setState] = useState<FaceDetectionState>({
@@ -55,6 +43,21 @@ export function useFaceDetection() {
     isModelReady: false,
     error: null,
   });
+
+  const processFrame = useCallback(async () => {
+    const video = videoRef.current;
+    const faceMesh = faceMeshRef.current;
+    if (!video || !faceMesh || video.readyState < 2) {
+      rafRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
+    try {
+      await faceMesh.send({ image: video });
+    } catch (e) {
+      // ignore frame errors
+    }
+    rafRef.current = requestAnimationFrame(processFrame);
+  }, []);
 
   const onResults = useCallback((results: any) => {
     if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
@@ -103,7 +106,7 @@ export function useFaceDetection() {
         ctx.fillStyle = eyesOpen ? '#10b981' : '#ef4444';
         for (const lm of landmarks) {
           ctx.beginPath();
-          ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 1, 0, 2 * Math.PI);
+          ctx.arc(lm.x * canvas.width, lm.y * canvas.height, 1.5, 0, 2 * Math.PI);
           ctx.fill();
         }
       }
@@ -123,14 +126,45 @@ export function useFaceDetection() {
   const startDetection = useCallback(async (video: HTMLVideoElement, canvas: HTMLCanvasElement) => {
     videoRef.current = video;
     canvasRef.current = canvas;
-    canvas.width = video.videoWidth || 320;
-    canvas.height = video.videoHeight || 240;
 
     setState(prev => ({ ...prev, isModelLoading: true, error: null }));
 
     try {
+      // Get camera stream first
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          width: { ideal: 320 },
+          height: { ideal: 240 },
+        },
+      });
+      streamRef.current = stream;
+      video.srcObject = stream;
+
+      await new Promise<void>((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          video.play().then(resolve).catch(reject);
+        };
+        // Fallback if metadata already loaded
+        if (video.readyState >= 1) {
+          video.play().then(resolve).catch(reject);
+        }
+      });
+
+      // Wait for video to be playing
+      await new Promise<void>((resolve) => {
+        if (video.paused) {
+          video.onplay = () => resolve();
+        } else {
+          resolve();
+        }
+      });
+
+      canvas.width = video.videoWidth || 320;
+      canvas.height = video.videoHeight || 240;
+
+      // Load MediaPipe Face Mesh
       const { FaceMesh } = await import('@mediapipe/face_mesh');
-      const { Camera } = await import('@mediapipe/camera_utils');
 
       const faceMesh = new FaceMesh({
         locateFile: (file: string) => {
@@ -148,18 +182,8 @@ export function useFaceDetection() {
       faceMesh.onResults(onResults);
       faceMeshRef.current = faceMesh;
 
-      const camera = new Camera(video, {
-        onFrame: async () => {
-          if (faceMeshRef.current) {
-            await faceMeshRef.current.send({ image: video });
-          }
-        },
-        width: 320,
-        height: 240,
-      });
-
-      cameraRef.current = camera;
-      await camera.start();
+      // Start processing frames
+      rafRef.current = requestAnimationFrame(processFrame);
 
       setState(prev => ({
         ...prev,
@@ -167,25 +191,27 @@ export function useFaceDetection() {
         isModelReady: true,
       }));
     } catch (err: any) {
+      console.error('Face detection error:', err);
       setState(prev => ({
         ...prev,
         isModelLoading: false,
-        error: err.message || 'Failed to load face detection model',
+        error: err.message || 'Failed to start face detection',
       }));
     }
-  }, [onResults]);
+  }, [onResults, processFrame]);
 
   const stopDetection = useCallback(() => {
-    if (cameraRef.current) {
-      cameraRef.current.stop();
-      cameraRef.current = null;
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
     }
     if (faceMeshRef.current) {
       faceMeshRef.current.close();
       faceMeshRef.current = null;
-    }
-    if (animFrameRef.current) {
-      cancelAnimationFrame(animFrameRef.current);
     }
   }, []);
 
@@ -195,5 +221,9 @@ export function useFaceDetection() {
     };
   }, [stopDetection]);
 
-  return { ...state, startDetection, stopDetection, videoRef, canvasRef };
+  const getStream = useCallback(() => {
+    return streamRef.current;
+  }, []);
+
+  return { ...state, startDetection, stopDetection, getStream, videoRef, canvasRef };
 }
