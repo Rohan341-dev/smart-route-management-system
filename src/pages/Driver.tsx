@@ -293,9 +293,27 @@ export default function Driver() {
 
       {screen === 'monitoring' && (
         <div className="flex-1 flex flex-col">
-          <div className="relative bg-black" style={{ height: '200px' }}>
+          <div className="relative bg-black" style={{ height: '240px' }}>
             <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
             <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: 'scaleX(-1)' }} />
+
+            {/* Loading overlay */}
+            {faceDetection.isModelLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy-900/90">
+                <div className="w-10 h-10 border-2 border-electric-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p className="text-xs text-electric-400 font-bold">Loading AI Model...</p>
+                <p className="text-[10px] text-gray-400 mt-1">First load takes 5-10 seconds</p>
+              </div>
+            )}
+
+            {/* Error overlay */}
+            {faceDetection.error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/90 p-4">
+                <p className="text-xs text-red-400 font-bold text-center">{faceDetection.error}</p>
+              </div>
+            )}
+
+            {/* Status badges */}
             <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
               <span className={`w-1.5 h-1.5 rounded-full ${faceDetection.faceDetected ? 'bg-green-400' : 'bg-red-400'}`}></span>
               <span className="text-[9px]">{faceDetection.faceDetected ? 'Face Detected' : 'No Face'}</span>
@@ -304,6 +322,14 @@ export default function Driver() {
               <Eye className={`w-3 h-3 ${faceDetection.eyesOpen ? 'text-green-400' : 'text-red-400'}`} />
               <span className="text-[9px]">{faceDetection.eyesOpen ? 'OPEN' : 'CLOSED'}</span>
             </div>
+
+            {/* Camera feed label */}
+            {faceDetection.isModelReady && (
+              <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+                <span className="text-[9px] text-white">LIVE</span>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 p-4 space-y-3">
