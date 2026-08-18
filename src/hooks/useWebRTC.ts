@@ -23,6 +23,10 @@ export function useWebRTC() {
     };
 
     peer.ontrack = (event) => {
+      console.log('[WebRTC] Received track:', event.track.kind, 'streams:', event.streams.length);
+      if (event.streams[0]) {
+        console.log('[WebRTC] Stream tracks:', event.streams[0].getTracks().map(t => t.kind));
+      }
       setRemoteStream(event.streams[0]);
       setConnectionState('connected');
     };

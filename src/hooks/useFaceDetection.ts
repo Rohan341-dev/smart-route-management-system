@@ -38,12 +38,13 @@ export function useFaceDetection() {
     const video = videoRef.current;
     const canvas = canvasRef.current;
     if (!video || !canvas || video.paused || video.readyState < 2) return;
+    if (!faceapi.nets.tinyFaceDetector.isLoaded || !faceapi.nets.faceLandmark68Net.isLoaded) return;
 
     try {
       const detections = await faceapi
         .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({
-          inputSize: 320,
-          scoreThreshold: 0.3,
+          inputSize: 224,
+          scoreThreshold: 0.1,
         }))
         .withFaceLandmarks();
 
@@ -175,8 +176,9 @@ export function useFaceDetection() {
       // Load models
       console.log('[FaceDetect] Loading models from:', MODEL_URL);
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      console.log('[FaceDetect] TinyFaceDetector loaded:', faceapi.nets.tinyFaceDetector.isLoaded);
       await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      console.log('[FaceDetect] Models loaded');
+      console.log('[FaceDetect] FaceLandmark68 loaded:', faceapi.nets.faceLandmark68Net.isLoaded);
 
       // Get camera stream
       console.log('[FaceDetect] Requesting camera...');
@@ -283,9 +285,10 @@ export function useFaceDetection() {
 
 function calculateEyeOpenness(eyePoints: any[]): number {
   if (eyePoints.length < 6) return 1;
-  const vertical1 = Math.hypot(eyePoints[3].x - eyePoints[1].x, eyePoints[3].y - eyePoints[1].y);
-  const vertical2 = Math.hypot(eyePoints[4].x - eyePoints[2].x, eyePoints[4].y - eyePoints[2].y);
-  const horizontal = Math.hypot(eyePoints[5].x - eyePoints[0].x, eyePoints[5].y - eyePoints[0].y);
+  // face-api.js eye points: 0=outer, 1=top-outer, 2=top-inner, 3=inner, 4=bottom-inner, 5=bottom-outer
+  const vertical1 = Math.hypot(eyePoints[1].x - eyePoints[5].x, eyePoints[1].y - eyePoints[5].y);
+  const vertical2 = Math.hypot(eyePoints[2].x - eyePoints[4].x, eyePoints[2].y - eyePoints[4].y);
+  const horizontal = Math.hypot(eyePoints[3].x - eyePoints[0].x, eyePoints[3].y - eyePoints[0].y);
   if (horizontal === 0) return 1;
   return (vertical1 + vertical2) / (2.0 * horizontal);
 }

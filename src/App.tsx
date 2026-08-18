@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useStore } from './store/useStore';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import MobileNav from './components/MobileNav';
 import Dashboard from './pages/Dashboard';
 import LiveFleet from './pages/LiveFleet';
 import Vehicles from './pages/Vehicles';
@@ -21,6 +22,14 @@ import DemoPanel from './components/DemoPanel';
 function AdminApp() {
   const { sidebarOpen, currentPage, demoModeActive, simulateBusMovement, sosAlerts } = useStore();
   const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -70,16 +79,28 @@ function AdminApp() {
         </div>
       )}
 
-      <Sidebar />
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block">
+        <Sidebar />
+      </div>
 
-      <div className={`flex-1 flex flex-col overflow-hidden ${sidebarOpen ? 'ml-64' : 'ml-20'} ${activeSOS ? 'mt-12' : ''} transition-all duration-300`}>
+      {/* Main Content */}
+      <div className={`flex-1 flex flex-col overflow-hidden ${
+        !isMobile && (sidebarOpen ? 'md:ml-64' : 'md:ml-20')
+      } ${activeSOS ? 'mt-12' : ''} transition-all duration-300`}>
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className={`flex-1 overflow-y-auto p-4 ${isMobile ? 'pb-20' : 'md:p-6'}`}>
           {renderPage()}
         </main>
       </div>
 
-      <DemoPanel />
+      {/* Mobile Bottom Nav */}
+      {isMobile && <MobileNav />}
+
+      {/* Demo Panel - hidden on mobile */}
+      <div className="hidden md:block">
+        <DemoPanel />
+      </div>
     </div>
   );
 }

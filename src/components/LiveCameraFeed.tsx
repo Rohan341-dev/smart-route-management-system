@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useWebRTC } from '../hooks/useWebRTC';
-import { Video, VideoOff, Wifi, WifiOff, Monitor } from 'lucide-react';
+import { Video, VideoOff, Wifi, WifiOff, Monitor, Copy, Check } from 'lucide-react';
 
 interface LiveCameraFeedProps {
   vehicleId?: string;
@@ -10,6 +10,7 @@ interface LiveCameraFeedProps {
 export default function LiveCameraFeed({ vehicleId = 'BUS-107', driverName = 'Suresh Magar' }: LiveCameraFeedProps) {
   const { remoteStream, connectionState, startAsAdmin } = useWebRTC();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const cleanup = startAsAdmin();
@@ -18,9 +19,17 @@ export default function LiveCameraFeed({ vehicleId = 'BUS-107', driverName = 'Su
 
   useEffect(() => {
     if (videoRef.current && remoteStream) {
+      console.log('[LiveCamera] Attaching stream:', remoteStream.id, 'tracks:', remoteStream.getTracks().length);
       videoRef.current.srcObject = remoteStream;
+      videoRef.current.play().catch(e => console.error('[LiveCamera] Play error:', e));
     }
   }, [remoteStream]);
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.origin + '/driver');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="glass-card overflow-hidden">
@@ -46,21 +55,33 @@ export default function LiveCameraFeed({ vehicleId = 'BUS-107', driverName = 'Su
         </div>
       </div>
 
-      <div className="relative bg-black aspect-video">
+      <div className="relative bg-black" style={{ aspectRatio: '4/3', minHeight: '240px' }}>
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
-          style={{ transform: 'scaleX(-1)' }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            transform: 'scaleX(-1)',
+            backgroundColor: '#000',
+          }}
         />
 
         {!remoteStream && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy-900/80">
-            <VideoOff className="w-10 h-10 text-gray-500 mb-2" />
-            <p className="text-xs text-gray-400">Waiting for driver camera...</p>
-            <p className="text-[10px] text-gray-500 mt-1">Open /driver on phone to connect</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy-900/80 p-4">
+            <VideoOff className="w-10 h-10 text-gray-500 mb-3" />
+            <p className="text-xs text-gray-400 text-center mb-2">Waiting for driver camera...</p>
+            <p className="text-[10px] text-gray-500 text-center mb-3">Open /driver on phone to connect</p>
+            <button
+              onClick={copyLink}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-electric-600/20 hover:bg-electric-600/30 rounded-lg text-[10px] text-electric-400 transition-colors"
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? 'Copied!' : 'Copy driver link'}
+            </button>
           </div>
         )}
 

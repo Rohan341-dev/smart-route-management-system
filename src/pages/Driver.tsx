@@ -60,24 +60,19 @@ export default function Driver() {
 
   const startCamera = useCallback(async () => {
     try {
-      if (videoRef.current && canvasRef.current) {
-        await faceDetection.startDetection(videoRef.current, canvasRef.current);
-        // Start WebRTC sharing after camera is ready
-        setTimeout(() => {
-          const stream = faceDetection.getStream();
-          if (stream) {
-            webrtc.startAsDriver(stream);
-          }
-        }, 1000);
-      }
+      // Just test camera permission during setup
+      const testStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' },
+      });
+      testStream.getTracks().forEach(t => t.stop());
       setCameraPermission(true);
       setPermissionStep('location');
       return true;
     } catch (err: any) {
-      console.error('Camera start failed:', err);
+      console.error('Camera permission denied:', err);
       return false;
     }
-  }, [faceDetection, webrtc]);
+  }, []);
 
   const requestLocation = useCallback(async () => {
     const granted = await gps.requestPermission();
@@ -93,7 +88,7 @@ export default function Driver() {
     return ready;
   }, [buzzer]);
 
-  const startTrip = useCallback(() => {
+  const startTrip = useCallback(async () => {
     setScreen('monitoring');
     gps.startTracking();
     gpsSendIntervalRef.current = window.setInterval(() => {
@@ -106,7 +101,21 @@ export default function Driver() {
         });
       }
     }, 3000);
-  }, [gps, selectedDriver, selectedVehicle.id]);
+    // Start camera + face detection after monitoring screen renders
+    setTimeout(async () => {
+      if (videoRef.current && canvasRef.current) {
+        try {
+          await faceDetection.startDetection(videoRef.current, canvasRef.current);
+          setTimeout(() => {
+            const stream = faceDetection.getStream();
+            if (stream) webrtc.startAsDriver(stream);
+          }, 2000);
+        } catch (e) {
+          console.error('Face detection failed:', e);
+        }
+      }
+    }, 500);
+  }, [gps, selectedDriver, selectedVehicle.id, faceDetection, webrtc]);
 
   useEffect(() => {
     if (faceDetection.faceDetected && !faceDetection.eyesOpen && screen === 'monitoring') {
