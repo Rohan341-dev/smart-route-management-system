@@ -13,7 +13,7 @@ export interface FaceDetectionState {
   error: string | null;
 }
 
-const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+const MODEL_URL = '/models';
 
 export function useFaceDetection() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
