@@ -29,8 +29,9 @@ export function useFaceDetection() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const faceMeshRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const rafRef = useRef<number>(0);
+  const intervalRef = useRef<number | null>(null);
   const earHistoryRef = useRef<number[]>([]);
+  const processingRef = useRef(false);
 
   const [state, setState] = useState<FaceDetectionState>({
     faceDetected: false,
@@ -44,22 +45,9 @@ export function useFaceDetection() {
     error: null,
   });
 
-  const processFrame = useCallback(async () => {
-    const video = videoRef.current;
-    const faceMesh = faceMeshRef.current;
-    if (!video || !faceMesh || video.readyState < 2) {
-      rafRef.current = requestAnimationFrame(processFrame);
-      return;
-    }
-    try {
-      await faceMesh.send({ image: video });
-    } catch (e) {
-      // ignore frame errors
-    }
-    rafRef.current = requestAnimationFrame(processFrame);
-  }, []);
-
   const onResults = useCallback((results: any) => {
+    processingRef.current = false;
+
     if (!results.multiFaceLandmarks || results.multiFaceLandmarks.length === 0) {
       setState(prev => ({
         ...prev,
@@ -88,7 +76,7 @@ export function useFaceDetection() {
       const closedCount = earHistoryRef.current.filter(e => e < 0.15).length;
       drowsinessScore = Math.min(closedCount / 10, 1);
     } else {
-      drowsinessScore = Math.max(0, (earHistoryRef.current[earHistoryRef.current.length - 1] || 0) < 0.2 ? 0.3 : 0);
+      drowsinessScore = 0;
     }
 
     const nose = landmarks[1];
@@ -123,6 +111,20 @@ export function useFaceDetection() {
     }));
   }, []);
 
+  const processFrame = useCallback(async () => {
+    if (processingRef.current) return;
+    const video = videoRef.current;
+    const faceMesh = faceMeshRef.current;
+    if (!video || !faceMesh || video.readyState < 2 || video.paused) return;
+
+    processingRef.current = true;
+    try {
+      await faceMesh.send({ image: video });
+    } catch (e) {
+      processingRef.current = false;
+    }
+  }, []);
+
   const startDetection = useCallback(async (video: HTMLVideoElement, canvas: HTMLCanvasElement) => {
     videoRef.current = video;
     canvasRef.current = canvas;
@@ -130,45 +132,48 @@ export function useFaceDetection() {
     setState(prev => ({ ...prev, isModelLoading: true, error: null }));
 
     try {
-      // Get camera stream first
+      // Get camera stream
+      console.log('[FaceDetect] Requesting camera...');
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'user',
-          width: { ideal: 320 },
-          height: { ideal: 240 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
         },
       });
       streamRef.current = stream;
       video.srcObject = stream;
 
+      // Wait for video to play
       await new Promise<void>((resolve, reject) => {
-        video.onloadedmetadata = () => {
-          video.play().then(resolve).catch(reject);
+        video.onloadedmetadata = async () => {
+          try {
+            await video.play();
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
         };
-        // Fallback if metadata already loaded
         if (video.readyState >= 1) {
           video.play().then(resolve).catch(reject);
         }
       });
 
-      // Wait for video to be playing
-      await new Promise<void>((resolve) => {
-        if (video.paused) {
-          video.onplay = () => resolve();
-        } else {
-          resolve();
-        }
-      });
-
-      canvas.width = video.videoWidth || 320;
-      canvas.height = video.videoHeight || 240;
+      console.log('[FaceDetect] Video playing:', video.videoWidth, 'x', video.videoHeight);
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
 
       // Load MediaPipe Face Mesh
-      const { FaceMesh } = await import('@mediapipe/face_mesh');
+      console.log('[FaceDetect] Loading MediaPipe Face Mesh...');
+      const face_mesh = await import('@mediapipe/face_mesh');
+      const FaceMesh = face_mesh.FaceMesh;
+      console.log('[FaceDetect] FaceMesh class loaded:', typeof FaceMesh);
 
       const faceMesh = new FaceMesh({
         locateFile: (file: string) => {
-          return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          const url = `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+          console.log('[FaceDetect] Loading:', url);
+          return url;
         },
       });
 
@@ -182,16 +187,21 @@ export function useFaceDetection() {
       faceMesh.onResults(onResults);
       faceMeshRef.current = faceMesh;
 
-      // Start processing frames
-      rafRef.current = requestAnimationFrame(processFrame);
+      // Wait a moment for model to initialize
+      await new Promise(r => setTimeout(r, 500));
+
+      console.log('[FaceDetect] Starting frame processing...');
+      // Start processing frames every 100ms
+      intervalRef.current = window.setInterval(processFrame, 100);
 
       setState(prev => ({
         ...prev,
         isModelLoading: false,
         isModelReady: true,
       }));
+      console.log('[FaceDetect] Ready!');
     } catch (err: any) {
-      console.error('Face detection error:', err);
+      console.error('[FaceDetect] Error:', err);
       setState(prev => ({
         ...prev,
         isModelLoading: false,
@@ -201,9 +211,9 @@ export function useFaceDetection() {
   }, [onResults, processFrame]);
 
   const stopDetection = useCallback(() => {
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = 0;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop());
@@ -213,6 +223,7 @@ export function useFaceDetection() {
       faceMeshRef.current.close();
       faceMeshRef.current = null;
     }
+    processingRef.current = false;
   }, []);
 
   useEffect(() => {
