@@ -32,7 +32,7 @@ export default function DriverMonitoring() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">-
         {/* Live Camera Feed */}
         <LiveCameraFeed vehicleId="BUS-107" driverName={activeDriver?.fullName || 'Suresh Magar'} />
 
