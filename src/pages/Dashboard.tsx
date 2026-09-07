@@ -58,6 +58,12 @@ export default function Dashboard() {
 
   const safetyData = drivers.map(d => ({ name: d.fullName.split(' ')[0], score: d.safetyScore }));
 
+  const chartGridColor = resolvedTheme === 'dark' ? '#ffffff10' : '#e2e8f0';
+  const chartTextColor = resolvedTheme === 'dark' ? '#9ca3af' : '#64748b';
+  const chartTooltipBg = resolvedTheme === 'dark' ? '#1a2035' : '#ffffff';
+  const chartTooltipBorder = resolvedTheme === 'dark' ? '#ffffff10' : '#e2e8f0';
+  const chartTooltipText = resolvedTheme === 'dark' ? '#fff' : '#1e293b';
+
   const kpiCards = [
     { label: 'Total Vehicles', value: vehicles.length, icon: Truck, color: 'from-blue-500 to-blue-700', change: '+2', up: true },
     { label: 'Active Vehicles', value: movingVehicles, icon: Activity, color: 'from-emerald-500 to-emerald-700', change: `${vehicles.length - movingVehicles - offlineVehicles} others`, up: false },
@@ -94,13 +100,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Weekly Activity */}
         <div className="lg:col-span-2 glass-card p-6">
-          <h3 className="text-sm font-bold text-white mb-4">Weekly Trip Activity</h3>
+          <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4">Weekly Trip Activity</h3>
           <ResponsiveContainer width="100%" height={250}>
             <AreaChart data={weeklyTrips}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-              <XAxis dataKey="day" stroke="#9ca3af" fontSize={12} />
-              <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip contentStyle={{ background: '#1a2035', border: '1px solid #ffffff10', borderRadius: '12px', color: '#fff' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis dataKey="day" stroke={chartTextColor} fontSize={12} />
+              <YAxis stroke={chartTextColor} fontSize={12} />
+              <Tooltip contentStyle={{ background: chartTooltipBg, border: `1px solid ${chartTooltipBorder}`, borderRadius: '12px', color: chartTooltipText }} />
               <Area type="monotone" dataKey="students" stroke="#3b76ff" fill="#3b76ff20" strokeWidth={2} />
               <Area type="monotone" dataKey="trips" stroke="#10b981" fill="#10b98120" strokeWidth={2} />
             </AreaChart>
@@ -109,7 +115,7 @@ export default function Dashboard() {
 
         {/* Vehicle Status */}
         <div className="glass-card p-6">
-          <h3 className="text-sm font-bold text-white mb-4">Vehicle Status</h3>
+          <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4">Vehicle Status</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={vehicleStatusData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" paddingAngle={3}>
@@ -117,14 +123,14 @@ export default function Dashboard() {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip contentStyle={{ background: '#1a2035', border: '1px solid #ffffff10', borderRadius: '12px', color: '#fff' }} />
+              <Tooltip contentStyle={{ background: chartTooltipBg, border: `1px solid ${chartTooltipBorder}`, borderRadius: '12px', color: chartTooltipText }} />
             </PieChart>
           </ResponsiveContainer>
           <div className="flex flex-wrap gap-3 mt-2">
             {vehicleStatusData.map((item, index) => (
               <div key={item.name} className="flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full" style={{ background: COLORS[index % COLORS.length] }}></span>
-                <span className="text-[10px] text-gray-400">{item.name}: {item.value}</span>
+                <span className="text-[10px] dark:text-gray-400 text-surface-500">{item.name}: {item.value}</span>
               </div>
             ))}
           </div>
@@ -175,13 +181,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Safety Scores */}
         <div className="glass-card p-6">
-          <h3 className="text-sm font-bold text-white mb-4">Driver Safety Scores</h3>
+          <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4">Driver Safety Scores</h3>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={safetyData} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" />
-              <XAxis type="number" domain={[0, 100]} stroke="#9ca3af" fontSize={12} />
-              <YAxis type="category" dataKey="name" stroke="#9ca3af" fontSize={11} width={70} />
-              <Tooltip contentStyle={{ background: '#1a2035', border: '1px solid #ffffff10', borderRadius: '12px', color: '#fff' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartGridColor} />
+              <XAxis type="number" domain={[0, 100]} stroke={chartTextColor} fontSize={12} />
+              <YAxis type="category" dataKey="name" stroke={chartTextColor} fontSize={11} width={70} />
+              <Tooltip contentStyle={{ background: chartTooltipBg, border: `1px solid ${chartTooltipBorder}`, borderRadius: '12px', color: chartTooltipText }} />
               <Bar dataKey="score" radius={[0, 6, 6, 0]}>
                 {safetyData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.score >= 90 ? '#10b981' : entry.score >= 80 ? '#f59e0b' : '#ef4444'} />
@@ -193,10 +199,10 @@ export default function Dashboard() {
 
         {/* Activity Feed */}
         <div className="lg:col-span-2 glass-card p-6">
-          <h3 className="text-sm font-bold text-white mb-4">Live Activity Feed</h3>
+          <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4">Live Activity Feed</h3>
           <div className="space-y-3 max-h-[300px] overflow-y-auto">
             {activityLogs.map((log) => (
-              <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl bg-navy-700/30 hover:bg-navy-600/30 transition-all">
+              <div key={log.id} className="flex items-start gap-3 p-3 rounded-xl dark:bg-navy-700/30 bg-surface-50 dark:hover:bg-navy-600/30 hover:bg-surface-100 transition-all">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                   log.severity === 'danger' ? 'bg-red-500/20 text-red-400' :
                   log.severity === 'warning' ? 'bg-amber-500/20 text-amber-400' :
@@ -209,8 +215,8 @@ export default function Dashboard() {
                    <Activity className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white truncate">{log.message}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{log.time}</p>
+                  <p className="text-xs dark:text-white text-surface-900 truncate">{log.message}</p>
+                  <p className="text-[10px] dark:text-gray-400 text-surface-500 mt-0.5">{log.time}</p>
                 </div>
               </div>
             ))}
