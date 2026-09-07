@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight } from 'lucide-react';
+import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode } from 'lucide-react';
+import StudentQRCode from '../components/StudentQRCode';
 
 export default function Students() {
   const { students } = useStore();
@@ -89,6 +90,7 @@ export default function Students() {
                 <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Drop</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Status</th>
                 <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Parent</th>
+                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">QR</th>
               </tr>
             </thead>
             <tbody>
@@ -123,6 +125,9 @@ export default function Students() {
                       <Phone className="w-3 h-3 text-gray-400" />
                       <span className="text-[10px] text-gray-400">{s.parentPhone}</span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <StudentQRCode student={s} compact />
                   </td>
                 </tr>
               ))}

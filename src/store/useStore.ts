@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState } from '../data/types';
-import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs } from '../data/mockData';
+import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus } from '../data/types';
+import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
 
 interface AppState {
   vehicles: Vehicle[];
@@ -21,10 +21,33 @@ interface AppState {
   escalationInterval: number | null;
   systemServices: { gps: boolean; ai: boolean; notifications: boolean };
 
+  // Attendance state
+  attendanceRecords: AttendanceRecord[];
+  attendanceSession: AttendanceSession | null;
+  attendanceEvents: AttendanceEvent[];
+  selectedAttendanceVehicle: string;
+  selectedAttendanceRoute: string;
+  selectedTripStage: TripStage;
+  lastScannedStudentId: string | null;
+  lastScanResult: { success: boolean; message: string; student?: Student } | null;
+
   setSelectedVehicle: (id: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
   setCurrentPage: (page: string) => void;
   toggleDemoMode: () => void;
+
+  // Attendance actions
+  setSelectedAttendanceVehicle: (id: string) => void;
+  setSelectedAttendanceRoute: (id: string) => void;
+  setSelectedTripStage: (stage: TripStage) => void;
+  startAttendanceSession: () => void;
+  stopAttendanceSession: () => void;
+  scanStudentQR: (qrCode: string) => void;
+  markStudentAbsent: (studentId: string) => void;
+  clearLastScanResult: () => void;
+  getStudentsOnBus: (vehicleId: string) => Student[];
+  getBusOccupancy: (vehicleId: string) => { total: number; capacity: number; pickedUp: number; onBus: number; dropped: number; absent: number };
+  getAttendanceByVehicle: (vehicleId: string) => Student[];
 
   // Demo simulation actions
   simulateBusMovement: () => void;
@@ -79,10 +102,291 @@ export const useStore = create<AppState>((set, get) => ({
     monitoringStartTime: Date.now(),
   },
 
+  // Attendance initial state
+  attendanceRecords: [],
+  attendanceSession: null,
+  attendanceEvents: initialAttendanceEvents,
+  selectedAttendanceVehicle: 'BUS-101',
+  selectedAttendanceRoute: 'RT-01',
+  selectedTripStage: 'morning_pickup',
+  lastScannedStudentId: null,
+  lastScanResult: null,
+
   setSelectedVehicle: (id) => set({ selectedVehicle: id }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setCurrentPage: (page) => set({ currentPage: page }),
   toggleDemoMode: () => set((s) => ({ demoModeActive: !s.demoModeActive })),
+
+  // Attendance actions
+  setSelectedAttendanceVehicle: (id) => set({ selectedAttendanceVehicle: id }),
+  setSelectedAttendanceRoute: (id) => set({ selectedAttendanceRoute: id }),
+  setSelectedTripStage: (stage) => set({ selectedTripStage: stage }),
+
+  startAttendanceSession: () => {
+    const state = get();
+    const vehicle = state.vehicles.find(v => v.id === state.selectedAttendanceVehicle);
+    if (!vehicle) return;
+    const route = state.routes.find(r => r.id === state.selectedAttendanceRoute);
+    const totalStudents = state.students.filter(s => s.assignedVehicleId === state.selectedAttendanceVehicle && s.assignedRouteId === state.selectedAttendanceRoute).length;
+    const newSession: AttendanceSession = {
+      id: `ASESS-${Date.now()}`,
+      vehicleId: state.selectedAttendanceVehicle,
+      routeId: state.selectedAttendanceRoute,
+      tripStage: state.selectedTripStage,
+      startTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      isActive: true,
+      totalStudents,
+      boarded: 0,
+      dropped: 0,
+      scannedStudentIds: [],
+    };
+    set({
+      attendanceSession: newSession,
+      attendanceRecords: [],
+      lastScannedStudentId: null,
+      lastScanResult: null,
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'student' as const,
+        title: 'Attendance Session Started',
+        message: `QR attendance session started for ${vehicle.id} on ${route?.name || state.selectedAttendanceRoute}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        read: false,
+        severity: 'info' as const,
+        vehicleId: vehicle.id,
+      }, ...state.notifications],
+    });
+  },
+
+  stopAttendanceSession: () => set((s) => {
+    if (!s.attendanceSession) return s;
+    const session = s.attendanceSession;
+    return {
+      attendanceSession: { ...session, isActive: false, endTime: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) },
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'student' as const,
+        title: 'Attendance Session Ended',
+        message: `QR attendance session completed. Boarded: ${session.boarded}, Dropped: ${session.dropped}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        read: false,
+        severity: 'info' as const,
+        vehicleId: session.vehicleId,
+      }, ...s.notifications],
+    };
+  }),
+
+  scanStudentQR: (qrCode: string) => {
+    const state = get();
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const student = state.students.find(s => s.qrCode === qrCode);
+
+    if (!student) {
+      set({
+        lastScanResult: { success: false, message: 'Unauthorized QR code - Student not found' },
+        attendanceEvents: [{
+          id: `AEVT-${Date.now()}`,
+          type: 'unauthorized',
+          studentId: 'unknown',
+          studentName: 'Unknown',
+          vehicleId: state.selectedAttendanceVehicle,
+          message: `Unauthorized QR scan attempted on ${state.selectedAttendanceVehicle}`,
+          time: now,
+          severity: 'danger',
+        }, ...state.attendanceEvents],
+        notifications: [{
+          id: `NOT-${Date.now()}`,
+          type: 'student' as const,
+          title: 'Unauthorized QR Scan',
+          message: `Invalid QR code scanned on ${state.selectedAttendanceVehicle}`,
+          time: now,
+          read: false,
+          severity: 'critical' as const,
+          vehicleId: state.selectedAttendanceVehicle,
+        }, ...state.notifications],
+      });
+      return;
+    }
+
+    if (student.assignedVehicleId !== state.selectedAttendanceVehicle) {
+      set({
+        lastScanResult: { success: false, message: `${student.fullName} is not assigned to ${state.selectedAttendanceVehicle}` },
+        attendanceEvents: [{
+          id: `AEVT-${Date.now()}`,
+          type: 'unauthorized',
+          studentId: student.id,
+          studentName: student.fullName,
+          vehicleId: state.selectedAttendanceVehicle,
+          message: `${student.fullName} attempted to board wrong bus - assigned to ${student.assignedVehicleId}`,
+          time: now,
+          severity: 'warning',
+        }, ...state.attendanceEvents],
+        notifications: [{
+          id: `NOT-${Date.now()}`,
+          type: 'student' as const,
+          title: 'Wrong Bus Alert',
+          message: `${student.fullName} scanned on wrong bus. Assigned: ${student.assignedVehicleId}`,
+          time: now,
+          read: false,
+          severity: 'warning' as const,
+          vehicleId: state.selectedAttendanceVehicle,
+        }, ...state.notifications],
+      });
+      return;
+    }
+
+    const isDropStage = state.selectedTripStage.includes('drop');
+    const isAlreadyBoarded = student.attendanceStatus === 'on_bus' || student.attendanceStatus === 'picked_up';
+    const isAlreadyDropped = student.attendanceStatus === 'dropped';
+
+    if (!isDropStage && isAlreadyBoarded) {
+      set({
+        lastScanResult: { success: false, message: `${student.fullName} has already boarded` },
+      });
+      return;
+    }
+
+    if (isDropStage && isAlreadyDropped) {
+      set({
+        lastScanResult: { success: false, message: `${student.fullName} has already been dropped` },
+      });
+      return;
+    }
+
+    if (isDropStage && !isAlreadyBoarded) {
+      set({
+        lastScanResult: { success: false, message: `${student.fullName} has not boarded yet` },
+      });
+      return;
+    }
+
+    const newStatus: StudentAttendanceStatus = isDropStage ? 'dropped' : 'on_bus';
+    const record: AttendanceRecord = {
+      id: `ATT-${Date.now()}`,
+      studentId: student.id,
+      vehicleId: state.selectedAttendanceVehicle,
+      routeId: state.selectedAttendanceRoute,
+      tripStage: state.selectedTripStage,
+      scannedAt: now,
+      scanType: isDropStage ? 'drop' : 'board',
+      status: newStatus,
+      scannedBy: 'demo',
+    };
+
+    const event: AttendanceEvent = {
+      id: `AEVT-${Date.now()}`,
+      type: isDropStage ? 'dropped' : 'boarded',
+      studentId: student.id,
+      studentName: student.fullName,
+      vehicleId: state.selectedAttendanceVehicle,
+      message: isDropStage
+        ? `${student.fullName} dropped at school at ${now}`
+        : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+      time: now,
+      severity: 'success',
+    };
+
+    const activityLog: ActivityLog = {
+      id: `LOG-${Date.now()}`,
+      type: 'student',
+      message: isDropStage
+        ? `${student.fullName} dropped at school`
+        : `${student.fullName} boarded ${state.selectedAttendanceVehicle}`,
+      time: now,
+      icon: 'check',
+      severity: 'success',
+    };
+
+    set((s) => ({
+      students: s.students.map(st => st.id === student.id ? {
+        ...st,
+        status: isDropStage ? 'dropped' as any : 'on_bus' as any,
+        attendanceStatus: newStatus,
+        lastBoardedAt: !isDropStage ? now : st.lastBoardedAt,
+        lastDroppedAt: isDropStage ? now : st.lastDroppedAt,
+        pickupTime: !isDropStage ? now : st.pickupTime,
+        dropTime: isDropStage ? now : st.dropTime,
+        attendanceHistory: [...st.attendanceHistory, record],
+      } : st),
+      attendanceRecords: [record, ...s.attendanceRecords],
+      attendanceEvents: [event, ...s.attendanceEvents],
+      activityLogs: [activityLog, ...s.activityLogs],
+      attendanceSession: s.attendanceSession ? {
+        ...s.attendanceSession,
+        boarded: !isDropStage ? s.attendanceSession.boarded + 1 : s.attendanceSession.boarded,
+        dropped: isDropStage ? s.attendanceSession.dropped + 1 : s.attendanceSession.dropped,
+        scannedStudentIds: [...s.attendanceSession.scannedStudentIds, student.id],
+      } : s.attendanceSession,
+      lastScannedStudentId: student.id,
+      lastScanResult: {
+        success: true,
+        message: isDropStage ? `${student.fullName} dropped successfully` : `${student.fullName} boarded successfully`,
+        student,
+      },
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'student' as const,
+        title: isDropStage ? 'Student Dropped' : 'Student Boarded',
+        message: isDropStage
+          ? `${student.fullName} dropped at school - ${state.selectedAttendanceVehicle}`
+          : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+        time: now,
+        read: false,
+        severity: 'info' as const,
+        studentId: student.id,
+        vehicleId: state.selectedAttendanceVehicle,
+      }, ...s.notifications],
+    }));
+  },
+
+  markStudentAbsent: (studentId: string) => {
+    const state = get();
+    const student = state.students.find(s => s.id === studentId);
+    if (!student) return;
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    set((s) => ({
+      students: s.students.map(st => st.id === studentId ? {
+        ...st,
+        status: 'absent' as any,
+        attendanceStatus: 'absent' as StudentAttendanceStatus,
+      } : st),
+      attendanceEvents: [{
+        id: `AEVT-${Date.now()}`,
+        type: 'absent',
+        studentId: student.id,
+        studentName: student.fullName,
+        vehicleId: state.selectedAttendanceVehicle,
+        message: `${student.fullName} marked as absent`,
+        time: now,
+        severity: 'warning',
+      }, ...s.attendanceEvents],
+    }));
+  },
+
+  clearLastScanResult: () => set({ lastScanResult: null }),
+
+  getStudentsOnBus: (vehicleId: string) => {
+    return get().students.filter(s => s.assignedVehicleId === vehicleId && (s.attendanceStatus === 'on_bus' || s.attendanceStatus === 'picked_up'));
+  },
+
+  getBusOccupancy: (vehicleId: string) => {
+    const state = get();
+    const vehicle = state.vehicles.find(v => v.id === vehicleId);
+    const assignedStudents = state.students.filter(s => s.assignedVehicleId === vehicleId);
+    return {
+      total: assignedStudents.length,
+      capacity: vehicle?.capacity || 40,
+      pickedUp: assignedStudents.filter(s => s.attendanceStatus === 'picked_up').length,
+      onBus: assignedStudents.filter(s => s.attendanceStatus === 'on_bus').length,
+      dropped: assignedStudents.filter(s => s.attendanceStatus === 'dropped').length,
+      absent: assignedStudents.filter(s => s.attendanceStatus === 'absent').length,
+    };
+  },
+
+  getAttendanceByVehicle: (vehicleId: string) => {
+    return get().students.filter(s => s.assignedVehicleId === vehicleId);
+  },
 
   markNotificationRead: (id) => set((s) => ({
     notifications: s.notifications.map(n => n.id === id ? { ...n, read: true } : n)

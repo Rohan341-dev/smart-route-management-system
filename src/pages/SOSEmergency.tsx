@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { AlertTriangle, Phone, MapPin, Clock, Shield, ArrowUp, CheckCircle, Navigation, Eye, Radio } from 'lucide-react';
+import { AlertTriangle, Phone, MapPin, Clock, Shield, ArrowUp, CheckCircle, Navigation, Eye, Radio, Users, GraduationCap } from 'lucide-react';
 
 export default function SOSEmergency() {
-  const { sosAlerts, adminResponds, adminNoResponse, secondaryResponds, secondaryNoResponse, resolveEmergency, drivers, vehicles, decrementEscalationTimer } = useStore();
+  const { sosAlerts, adminResponds, adminNoResponse, secondaryResponds, secondaryNoResponse, resolveEmergency, drivers, vehicles, decrementEscalationTimer, students } = useStore();
+
+  const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
+  const studentsOnBus = activeSOS ? students.filter(s => s.assignedVehicleId === activeSOS.vehicleId && (s.attendanceStatus === 'on_bus' || s.attendanceStatus === 'picked_up')) : [];
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -27,8 +30,6 @@ export default function SOSEmergency() {
     return colors[status] || colors.active;
   };
 
-  const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
-
   return (
     <div className="space-y-6">
       {/* Active SOS Banner */}
@@ -40,7 +41,7 @@ export default function SOSEmergency() {
                 <AlertTriangle className="w-8 h-8 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-red-400">🚨 ACTIVE SOS EMERGENCY</h2>
+                <h2 className="text-xl font-bold text-red-400">ACTIVE SOS EMERGENCY</h2>
                 <p className="text-sm text-gray-300 mt-1">Vehicle: {activeSOS.vehicleId} | Driver: {activeSOS.driverId}</p>
                 <p className="text-xs text-gray-400 mt-1">{activeSOS.reason}</p>
                 <p className="text-xs text-gray-400">Location: {activeSOS.location.lat.toFixed(4)}°N, {activeSOS.location.lng.toFixed(4)}°E</p>
@@ -55,8 +56,35 @@ export default function SOSEmergency() {
                 <p className="text-[10px] text-gray-400">Time Remaining</p>
                 <p className={`text-lg font-bold ${activeSOS.escalationTimer <= 10 ? 'text-red-400' : 'text-amber-400'}`}>{activeSOS.escalationTimer}s</p>
               </div>
+              <div className="text-center px-4 py-2 bg-red-500/20 rounded-xl border border-red-500/30">
+                <p className="text-[10px] text-red-300">Students On Board</p>
+                <p className="text-lg font-bold text-red-400">{studentsOnBus.length}</p>
+              </div>
             </div>
           </div>
+
+          {/* Students On Board List */}
+          {studentsOnBus.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-red-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <GraduationCap className="w-4 h-4 text-red-400" />
+                <span className="text-xs font-bold text-red-400">Students Currently On Board</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                {studentsOnBus.map(s => (
+                  <div key={s.id} className="flex items-center gap-2 p-2 bg-navy-700/30 rounded-lg">
+                    <div className="w-6 h-6 rounded-full bg-red-500/20 flex items-center justify-center">
+                      <span className="text-[8px] font-bold text-red-400">{s.fullName[0]}</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-white">{s.fullName}</p>
+                      <p className="text-[8px] text-gray-400">{s.studentId}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -89,6 +89,26 @@
   animation: pulse-fast 1s infinite;
 }
 
+@keyframes scan-success {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  50% { box-shadow: 0 0 0 15px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.scan-success-pulse {
+  animation: scan-success 0.8s ease-out;
+}
+
+@keyframes scan-line {
+  0% { top: 10%; }
+  50% { top: 85%; }
+  100% { top: 10%; }
+}
+
+.scan-line-anim {
+  animation: scan-line 2s ease-in-out infinite;
+}
+
 @media (max-width: 767px) {
   .kpi-card {
     @apply p-4;

@@ -17,6 +17,7 @@ import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Trips from './pages/Trips';
 import Driver from './pages/Driver';
+import Attendance from './pages/Attendance';
 import DemoPanel from './components/DemoPanel';
 
 function AdminApp() {
@@ -49,6 +50,7 @@ function AdminApp() {
       case 'students': return <Students />;
       case 'routes': return <Routes />;
       case 'trips': return <Trips />;
+      case 'attendance': return <Attendance />;
       case 'driver-monitoring': return <DriverMonitoring />;
       case 'alerts': return <Alerts />;
       case 'sos': return <SOSEmergency />;

@@ -1,5 +1,5 @@
 import { useStore } from '../store/useStore';
-import { LayoutDashboard, MapPin, Truck, Users, GraduationCap, Route, Navigation, Eye, Bell, AlertTriangle, Shield, BarChart3, Settings, ChevronLeft, ChevronRight, Bus, Radio, Map } from 'lucide-react';
+import { LayoutDashboard, MapPin, Truck, Users, GraduationCap, Route, Navigation, Eye, Bell, AlertTriangle, Shield, BarChart3, Settings, ChevronLeft, ChevronRight, Bus, Radio, Map, QrCode } from 'lucide-react';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -9,6 +9,7 @@ const navItems = [
   { id: 'drivers', label: 'Drivers', icon: Users },
   { id: 'students', label: 'Students', icon: GraduationCap },
   { id: 'trips', label: 'Trips', icon: Bus },
+  { id: 'attendance', label: 'QR Attendance', icon: QrCode },
   { id: 'driver-monitoring', label: 'AI Monitoring', icon: Eye },
   { id: 'alerts', label: 'Alerts', icon: Bell },
   { id: 'sos', label: 'SOS Emergency', icon: AlertTriangle },

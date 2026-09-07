@@ -1,15 +1,19 @@
 import { useStore } from '../store/useStore';
-import { AlertTriangle, Eye, Zap, Navigation, Clock, CheckCircle, Filter } from 'lucide-react';
+import { AlertTriangle, Eye, Zap, Navigation, Clock, CheckCircle, Filter, UserX } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Alerts() {
-  const { driverAlerts, acknowledgeAlert, drivers, vehicles } = useStore();
+  const { driverAlerts, acknowledgeAlert, drivers, vehicles, students } = useStore();
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [filterType, setFilterType] = useState('all');
 
+  const studentsWithWarnings = students.filter(s =>
+    s.attendanceStatus === 'on_bus' && s.lastBoardedAt
+  );
+
   const filtered = driverAlerts.filter(a => {
     const matchSeverity = filterSeverity === 'all' || a.severity === filterSeverity;
-    const matchType = filterType === 'all' || a.type === filterType;
+    const matchType = filterType === 'all' || a.type === a.type;
     return matchSeverity && matchType;
   });
 
@@ -55,6 +59,26 @@ export default function Alerts() {
           <p className="text-2xl font-bold text-amber-400">{driverAlerts.filter(a => a.type === 'drowsiness').length}</p>
         </div>
       </div>
+
+      {/* Attendance Safety Warnings */}
+      {studentsWithWarnings.length > 0 && (
+        <div className="glass-card p-4 border-l-4 border-l-amber-500 bg-amber-500/5">
+          <div className="flex items-center gap-2 mb-2">
+            <UserX className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-bold text-amber-400">Student Attendance Warnings</h3>
+          </div>
+          <p className="text-[10px] text-gray-400 mb-2">Students currently on bus - verify they reach their destination safely.</p>
+          <div className="space-y-1">
+            {studentsWithWarnings.slice(0, 3).map(s => (
+              <div key={s.id} className="flex items-center gap-2 text-[10px]">
+                <span className="text-white">{s.fullName}</span>
+                <span className="text-gray-400">on {s.assignedVehicleId}</span>
+                <span className="text-amber-400">boarded at {s.lastBoardedAt}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap">
         <select value={filterSeverity} onChange={e => setFilterSeverity(e.target.value)} className="input-field w-auto">

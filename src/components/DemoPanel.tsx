@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { ChevronUp, ChevronDown, Play, Eye, EyeOff, AlertTriangle, Phone, PhoneOff, CheckCircle, Navigation, UserPlus, UserMinus, RotateCcw, Zap } from 'lucide-react';
+import { ChevronUp, ChevronDown, Play, Eye, EyeOff, AlertTriangle, Phone, PhoneOff, CheckCircle, Navigation, UserPlus, UserMinus, RotateCcw, Zap, QrCode } from 'lucide-react';
 
 export default function DemoPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,10 +9,23 @@ export default function DemoPanel() {
     driverResponds, driverNoResponse, triggerSOS,
     adminResponds, adminNoResponse, secondaryResponds, secondaryNoResponse,
     resolveEmergency, simulateRouteDeviation, simulateStudentPickup, simulateStudentDrop,
-    monitoringState, sosAlerts
+    monitoringState, sosAlerts, students, selectedAttendanceVehicle, selectedAttendanceRoute,
+    scanStudentQR, startAttendanceSession, attendanceSession,
   } = useStore();
 
   const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
+
+  const handleQuickScan = () => {
+    if (!attendanceSession?.isActive) {
+      startAttendanceSession();
+    }
+    const assignedStudents = students.filter(
+      s => s.assignedVehicleId === selectedAttendanceVehicle && s.assignedRouteId === selectedAttendanceRoute && s.attendanceStatus === 'waiting'
+    );
+    if (assignedStudents.length > 0) {
+      scanStudentQR(assignedStudents[0].qrCode);
+    }
+  };
 
   const sections = [
     {
@@ -47,6 +60,12 @@ export default function DemoPanel() {
       items: [
         { label: 'Simulate Student Pickup', icon: UserPlus, action: simulateStudentPickup, color: 'bg-teal-600 hover:bg-teal-700' },
         { label: 'Simulate Student Drop', icon: UserMinus, action: simulateStudentDrop, color: 'bg-indigo-600 hover:bg-indigo-700' },
+      ]
+    },
+    {
+      title: 'QR Attendance',
+      items: [
+        { label: 'Quick Scan Student', icon: QrCode, action: handleQuickScan, color: 'bg-cyan-600 hover:bg-cyan-700' },
       ]
     }
   ];

@@ -1,5 +1,5 @@
 import { useStore } from '../store/useStore';
-import { BarChart3, TrendingUp, Clock, Users, Truck, AlertTriangle, Route } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, Users, Truck, AlertTriangle, Route, QrCode, CheckCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
 
 const COLORS = ['#3b76ff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -49,6 +49,7 @@ export default function Reports() {
     { label: 'Fleet Reports', desc: 'Vehicle utilization, mileage, idle time', icon: Truck, count: vehicles.length },
     { label: 'Driver Reports', desc: 'Safety scores, alerts, driving hours', icon: Users, count: drivers.length },
     { label: 'Student Reports', desc: 'Pickup/drop history, attendance', icon: Users, count: students.length },
+    { label: 'Attendance Reports', desc: 'QR scan history, boarding records', icon: QrCode, count: students.filter(s => s.attendanceHistory.length > 0).length },
     { label: 'Route Reports', desc: 'On-time %, delays, deviations', icon: Route, count: routes.length },
     { label: 'Emergency Reports', desc: 'SOS count, response times', icon: AlertTriangle, count: sosAlerts.length },
     { label: 'Trip Reports', desc: 'Trip count, completion rate', icon: BarChart3, count: trips.length },
@@ -147,6 +148,36 @@ export default function Reports() {
                 <span className="text-[10px] text-gray-400">{item.name}: {item.value}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Attendance Report */}
+        <div className="glass-card p-6">
+          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <QrCode className="w-4 h-4 text-electric-400" />
+            Student Attendance Summary
+          </h3>
+          <div className="space-y-3">
+            {[
+              { label: 'Total Students', value: students.length, color: 'text-white' },
+              { label: 'Students On Bus', value: students.filter(s => s.attendanceStatus === 'on_bus').length, color: 'text-emerald-400' },
+              { label: 'Students Dropped', value: students.filter(s => s.attendanceStatus === 'dropped').length, color: 'text-purple-400' },
+              { label: 'Students Waiting', value: students.filter(s => s.attendanceStatus === 'waiting').length, color: 'text-amber-400' },
+              { label: 'Students Absent', value: students.filter(s => s.attendanceStatus === 'absent').length, color: 'text-red-400' },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between p-2 bg-navy-700/30 rounded-lg">
+                <span className="text-xs text-gray-400">{item.label}</span>
+                <span className={`text-sm font-bold ${item.color}`}>{item.value}</span>
+              </div>
+            ))}
+            <div className="pt-2 border-t border-white/5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">Attendance Rate</span>
+                <span className="text-sm font-bold text-electric-400">
+                  {students.length > 0 ? Math.round(((students.filter(s => s.attendanceStatus === 'on_bus' || s.attendanceStatus === 'picked_up' || s.attendanceStatus === 'dropped').length) / students.length) * 100) : 0}%
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

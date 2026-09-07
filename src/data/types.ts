@@ -1,6 +1,8 @@
 export type VehicleStatus = 'moving' | 'stopped' | 'idle' | 'delayed' | 'offline' | 'emergency' | 'route_deviation';
 export type DriverStatus = 'active' | 'inactive' | 'alert' | 'drowsy' | 'emergency' | 'on_duty';
 export type StudentStatus = 'waiting' | 'picked_up' | 'on_bus' | 'dropped' | 'absent' | 'emergency';
+export type StudentAttendanceStatus = 'waiting' | 'picked_up' | 'on_bus' | 'dropped' | 'absent';
+export type TripStage = 'morning_pickup' | 'morning_drop' | 'evening_pickup' | 'evening_drop';
 export type AlertType = 'drowsiness' | 'overspeed' | 'harsh_braking' | 'route_deviation' | 'driver_offline';
 export type SOSStatus = 'active' | 'acknowledged' | 'escalating' | 'resolved' | 'false_alarm';
 export type EscalationLevel = 'primary' | 'secondary' | 'authority';
@@ -60,6 +62,7 @@ export interface Driver {
 
 export interface Student {
   id: string;
+  studentId: string;
   fullName: string;
   class: string;
   section: string;
@@ -72,6 +75,13 @@ export interface Student {
   status: StudentStatus;
   pickupTime?: string;
   dropTime?: string;
+  qrCode: string;
+  assignedVehicleId: string;
+  assignedRouteId: string;
+  attendanceStatus: StudentAttendanceStatus;
+  lastBoardedAt?: string;
+  lastDroppedAt?: string;
+  attendanceHistory: AttendanceRecord[];
 }
 
 export interface Route {
@@ -203,4 +213,43 @@ export interface DriverMonitoringState {
   buzzerActive: boolean;
   driverResponded: boolean | null;
   monitoringStartTime: number;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  studentId: string;
+  vehicleId: string;
+  routeId: string;
+  tripId?: string;
+  tripStage: TripStage;
+  scannedAt: string;
+  scanType: 'board' | 'drop';
+  status: StudentAttendanceStatus;
+  scannedBy: 'qr_camera' | 'demo' | 'manual';
+  location?: { lat: number; lng: number };
+}
+
+export interface AttendanceSession {
+  id: string;
+  vehicleId: string;
+  routeId: string;
+  tripStage: TripStage;
+  startTime: string;
+  endTime?: string;
+  isActive: boolean;
+  totalStudents: number;
+  boarded: number;
+  dropped: number;
+  scannedStudentIds: string[];
+}
+
+export interface AttendanceEvent {
+  id: string;
+  type: 'boarded' | 'dropped' | 'absent' | 'warning' | 'unauthorized';
+  studentId: string;
+  studentName: string;
+  vehicleId: string;
+  message: string;
+  time: string;
+  severity: 'info' | 'success' | 'warning' | 'danger';
 }

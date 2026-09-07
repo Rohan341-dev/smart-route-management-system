@@ -1,14 +1,14 @@
 import { useStore } from '../store/useStore';
 import {
   LayoutDashboard, MapPin, Truck, Users, Bus, Route,
-  Monitor, AlertTriangle, Shield, Bell, BarChart3, Settings
+  Monitor, AlertTriangle, Shield, Bell, BarChart3, Settings, QrCode
 } from 'lucide-react';
 
 const navItems = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'live-fleet', label: 'Fleet', icon: MapPin },
+  { id: 'attendance', label: 'QR Scan', icon: QrCode },
   { id: 'drivers', label: 'Drivers', icon: Users },
-  { id: 'driver-monitoring', label: 'Monitor', icon: Monitor },
   { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
   { id: 'sos', label: 'SOS', icon: Shield },
   { id: 'notifications', label: 'Notify', icon: Bell },

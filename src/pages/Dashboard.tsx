@@ -1,5 +1,5 @@
 import { useStore } from '../store/useStore';
-import { Truck, Users, GraduationCap, Route, AlertTriangle, Eye, CheckCircle, Clock, MapPin, Activity, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { Truck, Users, GraduationCap, Route, AlertTriangle, Eye, CheckCircle, Clock, MapPin, Activity, ArrowUp, ArrowDown, Minus, QrCode } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
 
 const COLORS = ['#3b76ff', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -29,6 +29,13 @@ export default function Dashboard() {
 
   const activeSOS = sosAlerts.filter(s => s.status === 'active' || s.status === 'escalating').length;
   const unreadAlerts = driverAlerts.filter(a => !a.acknowledged).length;
+
+  const totalAssignedStudents = students.length;
+  const studentsPickedUp = students.filter(s => s.attendanceStatus === 'picked_up').length;
+  const studentsOnBus = students.filter(s => s.attendanceStatus === 'on_bus').length;
+  const studentsDropped = students.filter(s => s.attendanceStatus === 'dropped').length;
+  const studentsAbsent = students.filter(s => s.attendanceStatus === 'absent').length;
+  const attendanceRate = totalAssignedStudents > 0 ? Math.round(((studentsPickedUp + studentsOnBus + studentsDropped) / totalAssignedStudents) * 100) : 0;
 
   const vehicleStatusData = [
     { name: 'Moving', value: movingVehicles },
@@ -120,6 +127,46 @@ export default function Dashboard() {
                 <span className="text-[10px] text-gray-400">{item.name}: {item.value}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Attendance Overview */}
+      <div className="glass-card p-6">
+        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+          <QrCode className="w-4 h-4 text-electric-400" />
+          Today's Bus Attendance
+        </h3>
+        <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+          <div className="flex-1 w-full">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-gray-400">{studentsPickedUp + studentsOnBus + studentsDropped} / {totalAssignedStudents} Students</span>
+              <span className="text-xs font-bold text-electric-400">{attendanceRate}% Attendance</span>
+            </div>
+            <div className="h-3 bg-navy-600 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-electric-500 to-electric-600 rounded-full transition-all duration-500"
+                style={{ width: `${attendanceRate}%` }}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            <div className="text-center">
+              <p className="text-lg font-bold text-amber-400">{totalAssignedStudents - studentsPickedUp - studentsOnBus - studentsDropped - studentsAbsent}</p>
+              <p className="text-[9px] text-gray-400">Waiting</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-emerald-400">{studentsOnBus}</p>
+              <p className="text-[9px] text-gray-400">On Bus</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-purple-400">{studentsDropped}</p>
+              <p className="text-[9px] text-gray-400">Dropped</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-bold text-red-400">{studentsAbsent}</p>
+              <p className="text-[9px] text-gray-400">Absent</p>
+            </div>
           </div>
         </div>
       </div>
