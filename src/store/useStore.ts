@@ -2,6 +2,20 @@ import { create } from 'zustand';
 import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
 
+export type Theme = 'light' | 'dark' | 'system';
+
+function getInitialTheme(): Theme {
+  try {
+    return (localStorage.getItem('smartbus-theme') as Theme) || 'system';
+  } catch { return 'system'; }
+}
+
+function getResolvedTheme(theme: Theme): 'light' | 'dark' {
+  if (theme === 'light') return 'light';
+  if (theme === 'dark') return 'dark';
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
 interface AppState {
   vehicles: Vehicle[];
   drivers: Driver[];
@@ -20,6 +34,11 @@ interface AppState {
   monitoringState: DriverMonitoringState;
   escalationInterval: number | null;
   systemServices: { gps: boolean; ai: boolean; notifications: boolean };
+
+  // Theme state
+  theme: Theme;
+  resolvedTheme: 'light' | 'dark';
+  setTheme: (theme: Theme) => void;
 
   // Attendance state
   attendanceRecords: AttendanceRecord[];
@@ -116,6 +135,18 @@ export const useStore = create<AppState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setCurrentPage: (page) => set({ currentPage: page }),
   toggleDemoMode: () => set((s) => ({ demoModeActive: !s.demoModeActive })),
+
+  // Theme
+  theme: getInitialTheme(),
+  resolvedTheme: getResolvedTheme(getInitialTheme()),
+  setTheme: (theme) => {
+    const resolved = getResolvedTheme(theme);
+    try { localStorage.setItem('smartbus-theme', theme); } catch {}
+    const html = document.documentElement;
+    html.classList.remove('light', 'dark');
+    html.classList.add(resolved);
+    set({ theme, resolvedTheme: resolved });
+  },
 
   // Attendance actions
   setSelectedAttendanceVehicle: (id) => set({ selectedAttendanceVehicle: id }),

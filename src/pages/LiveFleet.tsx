@@ -25,9 +25,10 @@ const schoolIcon = L.divIcon({
 });
 
 export default function LiveFleet() {
-  const { vehicles, drivers, setSelectedVehicle, selectedVehicle, routes } = useStore();
+  const { vehicles, drivers, setSelectedVehicle, selectedVehicle, routes, resolvedTheme } = useStore();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<Record<string, L.Marker>>({});
   const selected = vehicles.find(v => v.id === selectedVehicle);
 
@@ -57,9 +58,15 @@ export default function LiveFleet() {
 
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    const tileUrl = resolvedTheme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+    const tileLayer = L.tileLayer(tileUrl, {
       maxZoom: 19,
     }).addTo(map);
+
+    tileLayerRef.current = tileLayer;
 
     // Add school marker
     L.marker([27.7100, 85.3130], { icon: schoolIcon })
@@ -73,6 +80,23 @@ export default function LiveFleet() {
       mapInstanceRef.current = null;
     };
   }, []);
+
+  // Update map tiles when theme changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    const tileUrl = resolvedTheme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+    const tileLayer = L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
+    tileLayerRef.current = tileLayer;
+  }, [resolvedTheme]);
 
   // Update vehicle markers
   useEffect(() => {

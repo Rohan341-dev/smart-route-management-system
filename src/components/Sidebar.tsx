@@ -25,15 +25,15 @@ export default function Sidebar() {
   const unreadNotifs = notifications.filter(n => !n.read).length;
 
   return (
-    <aside className={`fixed left-0 top-0 h-full ${sidebarOpen ? 'w-64' : 'w-20'} bg-navy-800 border-r border-white/5 flex flex-col z-40 transition-all duration-300`}>
-      <div className="p-4 flex items-center gap-3 border-b border-white/5">
+    <aside className={`fixed left-0 top-0 h-full ${sidebarOpen ? 'w-64' : 'w-20'} dark:bg-navy-800 bg-white dark:border-r dark:border-white/5 border-r border-surface-200 flex flex-col z-40 transition-all duration-300`}>
+      <div className="p-4 flex items-center gap-3 dark:border-b dark:border-white/5 border-b border-surface-200">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-electric-500 to-electric-700 flex items-center justify-center flex-shrink-0">
           <Shield className="w-6 h-6 text-white" />
         </div>
         {sidebarOpen && (
           <div className="overflow-hidden">
-            <h1 className="text-sm font-bold text-white tracking-tight">SMART ROUTE</h1>
-            <p className="text-[10px] text-gray-400">AI Driver Monitoring + SOS</p>
+            <h1 className="text-sm font-bold dark:text-white text-surface-900 tracking-tight">SMART ROUTE</h1>
+            <p className="text-[10px] dark:text-gray-400 text-surface-500">AI Driver Monitoring + SOS</p>
           </div>
         )}
       </div>
@@ -65,10 +65,10 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-white/5">
+      <div className="p-3 border-t dark:border-white/5 border-surface-200">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="w-full flex items-center justify-center p-2 rounded-xl bg-navy-700/50 hover:bg-navy-600/50 text-gray-400 hover:text-white transition-all"
+          className="w-full flex items-center justify-center p-2 rounded-xl dark:bg-navy-700/50 bg-surface-100 dark:hover:bg-navy-600/50 hover:bg-surface-200 dark:text-gray-400 text-surface-500 dark:hover:text-white hover:text-surface-900 transition-all"
         >
           {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
         </button>

@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import { Settings as SettingsIcon, Eye, Shield, MapPin, Bell, Save, RotateCcw } from 'lucide-react';
+import { Settings as SettingsIcon, Eye, Shield, MapPin, Bell, Save, RotateCcw, Sun, Moon, Monitor } from 'lucide-react';
+import { useStore, Theme } from '../store/useStore';
 
 export default function Settings() {
   const [activeTab, setActiveTab] = useState('system');
+  const { theme, setTheme, resolvedTheme } = useStore();
 
   const tabs = [
     { id: 'system', label: 'System Settings', icon: SettingsIcon },
+    { id: 'appearance', label: 'Appearance', icon: Sun },
     { id: 'monitoring', label: 'Driver Monitoring', icon: Eye },
     { id: 'sos', label: 'SOS Settings', icon: Shield },
     { id: 'gps', label: 'GPS Settings', icon: MapPin },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+  ];
+
+  const themeOptions: { value: Theme; label: string; icon: typeof Sun; desc: string }[] = [
+    { value: 'light', label: 'Light Mode', icon: Sun, desc: 'Clean, bright interface for daytime use' },
+    { value: 'dark', label: 'Dark Mode', icon: Moon, desc: 'Premium dark appearance' },
+    { value: 'system', label: 'System Default', icon: Monitor, desc: 'Match your device preference' },
   ];
 
   return (
@@ -35,25 +44,25 @@ export default function Settings() {
 
       {activeTab === 'system' && (
         <div className="glass-card p-6 space-y-6">
-          <h3 className="text-sm font-bold text-white">System Settings</h3>
+          <h3 className="text-sm font-bold dark:text-white text-surface-900">System Settings</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">School Name</label>
+                <label className="text-xs dark:text-gray-400 text-surface-500 mb-1 block">School Name</label>
                 <input type="text" defaultValue="Kathmandu International Academy" className="input-field" />
               </div>
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">School Address</label>
+                <label className="text-xs dark:text-gray-400 text-surface-500 mb-1 block">School Address</label>
                 <input type="text" defaultValue="Baneshwor, Kathmandu, Nepal" className="input-field" />
               </div>
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Contact Phone</label>
+                <label className="text-xs dark:text-gray-400 text-surface-500 mb-1 block">Contact Phone</label>
                 <input type="text" defaultValue="+977-1-4444555" className="input-field" />
               </div>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Time Zone</label>
+                <label className="text-xs dark:text-gray-400 text-surface-500 mb-1 block">Time Zone</label>
                 <select className="input-field">
                   <option>Nepal Time (UTC +5:45)</option>
                   <option>India Time (UTC +5:30)</option>
@@ -61,12 +70,67 @@ export default function Settings() {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Operating Hours Start</label>
+                <label className="text-xs dark:text-gray-400 text-surface-500 mb-1 block">Operating Hours Start</label>
                 <input type="time" defaultValue="07:00" className="input-field" />
               </div>
               <div>
-                <label className="text-xs text-gray-400 mb-1 block">Operating Hours End</label>
+                <label className="text-xs dark:text-gray-400 text-surface-500 mb-1 block">Operating Hours End</label>
                 <input type="time" defaultValue="18:00" className="input-field" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'appearance' && (
+        <div className="glass-card p-6 space-y-6">
+          <h3 className="text-sm font-bold dark:text-white text-surface-900">Appearance</h3>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Choose your preferred theme for the SmartBus interface.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {themeOptions.map((opt) => {
+              const Icon = opt.icon;
+              const isActive = theme === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  onClick={() => setTheme(opt.value)}
+                  className={`p-6 rounded-2xl border-2 text-left transition-all ${
+                    isActive
+                      ? 'border-electric-500 dark:bg-electric-600/10 bg-electric-50'
+                      : 'dark:border-white/10 border-surface-200 dark:bg-navy-700/30 bg-white hover:border-electric-300'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 ${
+                    isActive ? 'bg-electric-600 text-white' : 'dark:bg-navy-600 bg-surface-100 dark:text-gray-300 text-surface-600'
+                  }`}>
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <p className={`text-sm font-bold ${isActive ? 'dark:text-electric-400 text-electric-600' : 'dark:text-white text-surface-900'}`}>{opt.label}</p>
+                  <p className="text-[10px] dark:text-gray-400 text-surface-500 mt-1">{opt.desc}</p>
+                  {isActive && (
+                    <div className="mt-3 flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-electric-500"></div>
+                      <span className="text-[10px] font-bold text-electric-500">Active</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="dark:bg-navy-700/30 bg-surface-100 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-bold dark:text-white text-surface-900">Current Theme</p>
+                <p className="text-[10px] dark:text-gray-400 text-surface-500">
+                  {theme === 'system' ? `System Default (${resolvedTheme === 'dark' ? 'Dark' : 'Light'})` : theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+                </p>
+              </div>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                resolvedTheme === 'dark' ? 'bg-navy-600 text-white' : 'bg-white text-surface-900 border border-surface-200'
+              }`}>
+                {resolvedTheme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
               </div>
             </div>
           </div>

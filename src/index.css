@@ -17,22 +17,50 @@
     background-color: #2d3650;
     border-radius: 3px;
   }
+  html {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
   body {
-    @apply bg-navy-900 text-white antialiased;
+    @apply antialiased;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  /* Dark mode body - default */
+  .dark body {
+    @apply bg-navy-900 text-white;
+  }
+  /* Light mode body */
+  body {
+    @apply bg-surface-50 text-surface-900;
   }
 }
 
 @layer components {
+  /* Theme-aware glass card */
   .glass-card {
-    @apply bg-navy-700/50 backdrop-blur-md border border-white/5 rounded-2xl;
+    @apply backdrop-blur-md rounded-2xl border transition-colors duration-200;
+  }
+  .dark .glass-card {
+    @apply bg-navy-700/50 border-white/5;
+  }
+  .glass-card {
+    @apply bg-white border-surface-200 shadow-sm;
+  }
+
+  .glass-card-light {
+    @apply backdrop-blur-sm rounded-xl border transition-colors duration-200;
+  }
+  .dark .glass-card-light {
+    @apply bg-navy-600/30 border-white/5;
   }
   .glass-card-light {
-    @apply bg-navy-600/30 backdrop-blur-sm border border-white/5 rounded-xl;
+    @apply bg-surface-100 border-surface-200;
   }
+
   .status-badge {
     @apply px-3 py-1 rounded-full text-xs font-semibold;
   }
+
+  /* Theme-aware buttons */
   .btn-primary {
     @apply px-4 py-2 bg-electric-600 hover:bg-electric-700 text-white rounded-xl font-medium transition-all duration-200;
   }
@@ -45,20 +73,45 @@
   .btn-warning {
     @apply px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-medium transition-all duration-200;
   }
+
+  /* Theme-aware nav link */
   .nav-link {
     @apply flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200;
   }
-  .nav-link:hover {
+  .dark .nav-link:hover {
     @apply bg-white/5;
   }
-  .nav-link.active {
+  .nav-link:hover {
+    @apply bg-surface-100;
+  }
+  .dark .nav-link.active {
     @apply bg-electric-600/20 text-electric-400;
   }
+  .nav-link.active {
+    @apply bg-electric-50 text-electric-600;
+  }
+
   .kpi-card {
     @apply glass-card p-6 flex flex-col gap-2;
   }
+
+  /* Theme-aware input */
   .input-field {
-    @apply w-full px-4 py-3 bg-navy-700/50 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-electric-500 focus:ring-1 focus:ring-electric-500;
+    @apply w-full px-4 py-3 rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-1 focus:ring-electric-500;
+  }
+  .dark .input-field {
+    @apply bg-navy-700/50 border border-white/10 text-white placeholder-gray-400 focus:border-electric-500;
+  }
+  .input-field {
+    @apply bg-white border border-surface-300 text-surface-900 placeholder-surface-400 focus:border-electric-500;
+  }
+
+  /* Theme-aware KPI card */
+  .dark .kpi-card {
+    @apply bg-navy-700/50 border-white/5;
+  }
+  .kpi-card {
+    @apply bg-white border-surface-200;
   }
 }
 
@@ -71,8 +124,11 @@
   animation: sos-pulse 1s infinite;
 }
 
-.leaflet-container {
+.dark .leaflet-container {
   background: #111827 !important;
+}
+.leaflet-container {
+  background: #e2e8f0 !important;
   border-radius: 1rem;
 }
 
@@ -107,6 +163,43 @@
 
 .scan-line-anim {
   animation: scan-line 2s ease-in-out infinite;
+}
+
+/* Theme-aware select dropdowns */
+.dark select.input-field option {
+  @apply bg-navy-800 text-white;
+}
+select.input-field option {
+  @apply bg-white text-surface-900;
+}
+
+/* Theme-aware table */
+.dark .glass-card table thead tr {
+  @apply border-white/5;
+}
+.glass-card table thead tr {
+  @apply border-surface-200;
+}
+.dark .glass-card table tbody tr {
+  @apply border-white/5 hover:bg-white/5;
+}
+.glass-card table tbody tr {
+  @apply border-surface-100 hover:bg-surface-50;
+}
+
+/* Theme-aware checkboxes and inputs */
+.dark input[type="checkbox"] {
+  @apply accent-electric-500;
+}
+input[type="checkbox"] {
+  @apply accent-electric-600;
+}
+
+.dark input[type="range"] {
+  @apply accent-electric-500;
+}
+input[type="range"] {
+  @apply accent-electric-600;
 }
 
 @media (max-width: 767px) {

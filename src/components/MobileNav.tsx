@@ -29,7 +29,7 @@ export default function MobileNav() {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-navy-900/95 backdrop-blur-md border-t border-white/5 safe-area-bottom md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 dark:bg-navy-900/95 bg-white/95 backdrop-blur-md dark:border-t dark:border-white/5 border-t border-surface-200 safe-area-bottom md:hidden">
       <div className="flex items-center justify-around px-1 py-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -40,7 +40,7 @@ export default function MobileNav() {
               key={item.id}
               onClick={() => setCurrentPage(item.id)}
               className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-lg transition-all min-w-0 flex-1 ${
-                isActive ? 'text-electric-400' : 'text-gray-500'
+                isActive ? 'text-electric-400' : 'dark:text-gray-500 text-surface-400'
               }`}
             >
               <div className="relative">

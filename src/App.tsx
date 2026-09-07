@@ -21,7 +21,7 @@ import Attendance from './pages/Attendance';
 import DemoPanel from './components/DemoPanel';
 
 function AdminApp() {
-  const { sidebarOpen, currentPage, demoModeActive, simulateBusMovement, sosAlerts } = useStore();
+  const { sidebarOpen, currentPage, demoModeActive, simulateBusMovement, sosAlerts, resolvedTheme } = useStore();
   const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
   const [isMobile, setIsMobile] = useState(false);
 
@@ -62,7 +62,7 @@ function AdminApp() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-navy-900">
+    <div className="flex h-screen overflow-hidden transition-colors duration-200 dark:bg-navy-900 bg-surface-50">
       {activeSOS && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-red-600/90 backdrop-blur-md text-white px-4 py-2 flex items-center justify-between animate-pulse-fast">
           <div className="flex items-center gap-3">
