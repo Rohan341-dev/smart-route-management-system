@@ -32,7 +32,7 @@ export default function DemoQRScanner({ onScan, isActive }: DemoQRScannerProps) 
       </div>
 
       <div className="space-y-2">
-        <label className="text-[10px] text-gray-400 uppercase tracking-wider">Select Student to Simulate Scan</label>
+        <label className="text-[10px] dark:text-gray-400 text-surface-500 uppercase tracking-wider">Select Student to Simulate Scan</label>
         <select
           value={selectedStudentId}
           onChange={e => setSelectedStudentId(e.target.value)}
@@ -53,7 +53,7 @@ export default function DemoQRScanner({ onScan, isActive }: DemoQRScannerProps) 
         className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all ${
           selectedStudentId && isActive
             ? 'bg-gradient-to-r from-electric-600 to-electric-700 text-white hover:from-electric-500 hover:to-electric-600'
-            : 'bg-navy-700/50 text-gray-500 cursor-not-allowed'
+            : 'dark:bg-navy-700/50 bg-surface-200 dark:text-gray-500 text-surface-500 cursor-not-allowed'
         }`}
       >
         <QrCode className="w-4 h-4" />
@@ -61,12 +61,12 @@ export default function DemoQRScanner({ onScan, isActive }: DemoQRScannerProps) 
       </button>
 
       {!isActive && (
-        <p className="text-[10px] text-gray-500 text-center">Start an attendance session first</p>
+        <p className="text-[10px] dark:text-gray-500 text-surface-500 text-center">Start an attendance session first</p>
       )}
 
       {assignedStudents.length === 0 && (
         <div className="text-center py-4">
-          <p className="text-xs text-gray-400">No students assigned to this bus/route</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">No students assigned to this bus/route</p>
         </div>
       )}
     </div>

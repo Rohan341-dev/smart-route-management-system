@@ -39,7 +39,7 @@ export default function DriverMonitoring() {
         {/* Monitoring Panel */}
         <div className="space-y-4">
           <div className="glass-card p-6">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4 flex items-center gap-2">
               <Activity className="w-4 h-4 text-electric-400" />
               Driver Status
             </h3>
@@ -58,44 +58,44 @@ export default function DriverMonitoring() {
                   {monitoringState.eyesOpen ? <Eye className="w-6 h-6 text-white" /> : <EyeOff className="w-6 h-6 text-white" />}
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white">
+                  <p className="text-sm font-bold dark:text-white text-surface-900">
                     {monitoringState.drowsinessDetected ? 'DROWSINESS DETECTED' :
                      monitoringState.buzzerActive ? 'BUZZER ACTIVE' :
                      monitoringState.eyesOpen ? 'ALERT' : 'EYES CLOSED'}
                   </p>
-                  <p className="text-xs text-gray-300">Driver: {activeDriver?.fullName || 'Suresh Magar'}</p>
+                  <p className="text-xs dark:text-gray-300 text-surface-600">Driver: {activeDriver?.fullName || 'Suresh Magar'}</p>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-navy-700/30 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400">Eyes</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+                <p className="text-[10px] dark:text-gray-400 text-surface-500">Eyes</p>
                 <p className={`text-sm font-bold ${monitoringState.eyesOpen ? 'text-emerald-400' : 'text-red-400'}`}>
                   {monitoringState.eyesOpen ? 'Open' : 'Closed'}
                 </p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400">Attention</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+                <p className="text-[10px] dark:text-gray-400 text-surface-500">Attention</p>
                 <p className={`text-sm font-bold ${
                   monitoringState.attention === 'normal' ? 'text-emerald-400' :
                   monitoringState.attention === 'distracted' ? 'text-amber-400' : 'text-red-400'
                 }`}>{monitoringState.attention}</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400">Safety Score</p>
-                <p className="text-sm font-bold text-white">{activeDriver?.safetyScore || 91}/100</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+                <p className="text-[10px] dark:text-gray-400 text-surface-500">Safety Score</p>
+                <p className="text-sm font-bold dark:text-white text-surface-900">{activeDriver?.safetyScore || 91}/100</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-3">
-                <p className="text-[10px] text-gray-400">Blink Frequency</p>
-                <p className="text-sm font-bold text-white">{monitoringState.blinkFrequency} bpm</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+                <p className="text-[10px] dark:text-gray-400 text-surface-500">Blink Frequency</p>
+                <p className="text-sm font-bold dark:text-white text-surface-900">{monitoringState.blinkFrequency} bpm</p>
               </div>
             </div>
           </div>
 
           {/* AI Detection Workflow */}
           <div className="glass-card p-6">
-            <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4 flex items-center gap-2">
               <Shield className="w-4 h-4 text-electric-400" />
               AI Detection Pipeline
             </h3>
@@ -111,13 +111,13 @@ export default function DriverMonitoring() {
               ].map((item, index) => (
                 <div key={item.step} className="flex items-center gap-3">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    item.status ? 'bg-emerald-500' : 'bg-navy-600'
+                    item.status ? 'bg-emerald-500' : 'dark:bg-navy-600 bg-surface-200'
                   }`}>
                     {item.status ? <CheckCircle className="w-3.5 h-3.5 text-white" /> :
-                     <span className="text-[10px] text-gray-400 font-bold">{index + 1}</span>}
+                     <span className="text-[10px] dark:text-gray-400 text-surface-500 font-bold">{index + 1}</span>}
                   </div>
-                  <span className={`text-xs ${item.status ? 'text-emerald-400' : 'text-gray-400'}`}>{item.step}</span>
-                  {index < 6 && <div className={`flex-1 h-0.5 ${item.status ? 'bg-emerald-500/30' : 'bg-navy-600'}`}></div>}
+                  <span className={`text-xs ${item.status ? 'text-emerald-400' : 'dark:text-gray-400 text-surface-500'}`}>{item.step}</span>
+                  {index < 6 && <div className={`flex-1 h-0.5 ${item.status ? 'bg-emerald-500/30' : 'dark:bg-navy-600 bg-surface-200'}`}></div>}
                 </div>
               ))}
             </div>
@@ -126,7 +126,7 @@ export default function DriverMonitoring() {
           {/* Action buttons */}
           {(monitoringState.buzzerActive || monitoringState.drowsinessDetected) && (
             <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-white mb-3">Driver Response Required</h3>
+              <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-3">Driver Response Required</h3>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={driverResponds} className="btn-success flex items-center justify-center gap-2">
                   <CheckCircle className="w-4 h-4" />
@@ -146,7 +146,7 @@ export default function DriverMonitoring() {
                 <AlertTriangle className="w-4 h-4 text-red-400" />
                 <span className="text-xs font-bold text-red-400">SOS ACTIVE</span>
               </div>
-              <p className="text-xs text-gray-300">Emergency escalation in progress — {activeSOS.escalationLevel.toUpperCase()}</p>
+              <p className="text-xs dark:text-gray-300 text-surface-600">Emergency escalation in progress — {activeSOS.escalationLevel.toUpperCase()}</p>
               <button onClick={() => useStore.getState().setCurrentPage('sos')} className="btn-danger w-full mt-3 text-xs">
                 View SOS Center
               </button>

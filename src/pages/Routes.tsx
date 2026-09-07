@@ -29,24 +29,24 @@ export default function Routes() {
           <div className="lg:col-span-2 glass-card p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-white">{detail.name}</h2>
-                <p className="text-sm text-gray-400">{detail.id}</p>
+                <h2 className="text-xl font-bold dark:text-white text-surface-900">{detail.name}</h2>
+                <p className="text-sm dark:text-gray-400 text-surface-500">{detail.id}</p>
               </div>
               <span className={`status-badge border ${getStatusBadge(detail.status)}`}>{detail.status.toUpperCase()}</span>
             </div>
 
             <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-navy-700/30 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-400">Distance</p>
-                <p className="text-lg font-bold text-white">{detail.distance}</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4 text-center">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Distance</p>
+                <p className="text-lg font-bold dark:text-white text-surface-900">{detail.distance}</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-400">Est. Time</p>
-                <p className="text-lg font-bold text-white">{detail.estimatedTime}</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4 text-center">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Est. Time</p>
+                <p className="text-lg font-bold dark:text-white text-surface-900">{detail.estimatedTime}</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-400">Students</p>
-                <p className="text-lg font-bold text-white">{detail.totalStudents}</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4 text-center">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Students</p>
+                <p className="text-lg font-bold dark:text-white text-surface-900">{detail.totalStudents}</p>
               </div>
             </div>
 
@@ -63,12 +63,12 @@ export default function Routes() {
                        index < detail.stops.length - 1 ? <MapPin className="w-5 h-5 text-white" /> :
                        <Clock className="w-5 h-5 text-white" />}
                     </div>
-                    {index < detail.stops.length - 1 && <div className="w-0.5 h-12 bg-white/10 my-1"></div>}
+                    {index < detail.stops.length - 1 && <div className="w-0.5 h-12 dark:bg-white/10 bg-surface-200 my-1"></div>}
                   </div>
                   <div className="pb-6 flex-1">
-                    <p className="text-sm font-bold text-white">{stop.name}</p>
-                    <p className="text-xs text-gray-400">{stop.time} — {stop.studentsCount} students — {stop.type.toUpperCase()}</p>
-                    <p className="text-[10px] text-gray-500">{stop.lat.toFixed(4)}°N, {stop.lng.toFixed(4)}°E</p>
+                    <p className="text-sm font-bold dark:text-white text-surface-900">{stop.name}</p>
+                    <p className="text-xs dark:text-gray-400 text-surface-500">{stop.time} — {stop.studentsCount} students — {stop.type.toUpperCase()}</p>
+                    <p className="text-[10px] dark:text-gray-500 text-surface-500">{stop.lat.toFixed(4)}°N, {stop.lng.toFixed(4)}°E</p>
                   </div>
                 </div>
               ))}
@@ -77,22 +77,22 @@ export default function Routes() {
 
           <div className="space-y-4">
             <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-white mb-3">Assignment</h3>
+              <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-3">Assignment</h3>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-gray-400">Vehicle</span><span className="text-white">{detail.vehicleId}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Driver</span><span className="text-white">{driver?.fullName || 'None'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Start Time</span><span className="text-white">{detail.startTime || 'Not started'}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Vehicle</span><span className="dark:text-white text-surface-900">{detail.vehicleId}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Driver</span><span className="dark:text-white text-surface-900">{driver?.fullName || 'None'}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Start Time</span><span className="dark:text-white text-surface-900">{detail.startTime || 'Not started'}</span></div>
               </div>
             </div>
 
             <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-white mb-3">Students on Route ({routeStudents.length})</h3>
+              <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-3">Students on Route ({routeStudents.length})</h3>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {routeStudents.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-navy-700/30">
+                  <div key={s.id} className="flex items-center justify-between p-2 rounded-lg dark:bg-navy-700/30 bg-surface-50">
                     <div>
-                      <p className="text-xs font-bold text-white">{s.fullName}</p>
-                      <p className="text-[10px] text-gray-400">{s.pickupStop}</p>
+                      <p className="text-xs font-bold dark:text-white text-surface-900">{s.fullName}</p>
+                      <p className="text-[10px] dark:text-gray-400 text-surface-500">{s.pickupStop}</p>
                     </div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${
                       s.status === 'on_bus' ? 'bg-emerald-500/20 text-emerald-400' :
@@ -116,34 +116,34 @@ export default function Routes() {
           const vehicle = vehicles.find(v => v.id === r.vehicleId);
           const driver = drivers.find(d => d.id === r.driverId);
           return (
-            <div key={r.id} onClick={() => setSelectedRoute(r.id)} className="glass-card p-4 hover:bg-white/5 cursor-pointer transition-all group">
+            <div key={r.id} onClick={() => setSelectedRoute(r.id)} className="glass-card p-4 dark:hover:bg-white/5 hover:bg-surface-50 cursor-pointer transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-white group-hover:text-electric-400 transition-colors">{r.name}</h3>
-                  <p className="text-[10px] text-gray-400">{r.id}</p>
+                  <h3 className="text-sm font-bold dark:text-white text-surface-900 group-hover:text-electric-400 transition-colors">{r.name}</h3>
+                  <p className="text-[10px] dark:text-gray-400 text-surface-500">{r.id}</p>
                 </div>
                 <span className={`status-badge border text-[10px] ${getStatusBadge(r.status)}`}>{r.status}</span>
               </div>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Vehicle</span>
-                  <span className="text-white">{r.vehicleId}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Vehicle</span>
+                  <span className="dark:text-white text-surface-900">{r.vehicleId}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Driver</span>
-                  <span className="text-white">{driver?.fullName || 'None'}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Driver</span>
+                  <span className="dark:text-white text-surface-900">{driver?.fullName || 'None'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Stops</span>
-                  <span className="text-white">{r.stops.length}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Stops</span>
+                  <span className="dark:text-white text-surface-900">{r.stops.length}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Students</span>
-                  <span className="text-white">{r.totalStudents}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Students</span>
+                  <span className="dark:text-white text-surface-900">{r.totalStudents}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Distance</span>
-                  <span className="text-white">{r.distance}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Distance</span>
+                  <span className="dark:text-white text-surface-900">{r.distance}</span>
                 </div>
               </div>
               {/* Mini route preview */}
@@ -151,7 +151,7 @@ export default function Routes() {
                 {r.stops.map((stop, i) => (
                   <div key={stop.id} className="flex items-center">
                     <div className={`w-2 h-2 rounded-full ${stop.type === 'school' ? 'bg-electric-500' : 'bg-emerald-500'}`}></div>
-                    {i < r.stops.length - 1 && <div className="w-4 h-0.5 bg-white/10"></div>}
+                    {i < r.stops.length - 1 && <div className="w-4 h-0.5 dark:bg-white/10 bg-surface-200"></div>}
                   </div>
                 ))}
               </div>

@@ -43,19 +43,19 @@ export default function Alerts() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Total Alerts</p>
-          <p className="text-2xl font-bold text-white">{driverAlerts.length}</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Total Alerts</p>
+          <p className="text-2xl font-bold dark:text-white text-surface-900">{driverAlerts.length}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Unread</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Unread</p>
           <p className="text-2xl font-bold text-red-400">{unacknowledged}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Critical</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Critical</p>
           <p className="text-2xl font-bold text-orange-400">{driverAlerts.filter(a => a.severity === 'critical').length}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Drowsiness</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Drowsiness</p>
           <p className="text-2xl font-bold text-amber-400">{driverAlerts.filter(a => a.type === 'drowsiness').length}</p>
         </div>
       </div>
@@ -67,12 +67,12 @@ export default function Alerts() {
             <UserX className="w-4 h-4 text-amber-400" />
             <h3 className="text-xs font-bold text-amber-400">Student Attendance Warnings</h3>
           </div>
-          <p className="text-[10px] text-gray-400 mb-2">Students currently on bus - verify they reach their destination safely.</p>
+          <p className="text-[10px] dark:text-gray-400 text-surface-500 mb-2">Students currently on bus - verify they reach their destination safely.</p>
           <div className="space-y-1">
             {studentsWithWarnings.slice(0, 3).map(s => (
               <div key={s.id} className="flex items-center gap-2 text-[10px]">
-                <span className="text-white">{s.fullName}</span>
-                <span className="text-gray-400">on {s.assignedVehicleId}</span>
+                <span className="dark:text-white text-surface-900">{s.fullName}</span>
+                <span className="dark:text-gray-400 text-surface-500">on {s.assignedVehicleId}</span>
                 <span className="text-amber-400">boarded at {s.lastBoardedAt}</span>
               </div>
             ))}
@@ -114,12 +114,12 @@ export default function Alerts() {
                 <div className="flex-1">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-sm font-bold text-white">{alert.message}</p>
+                      <p className="text-sm font-bold dark:text-white text-surface-900">{alert.message}</p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-[10px] text-gray-400">{alert.vehicleId} — {driver?.fullName || alert.driverId}</span>
-                        <span className="text-[10px] text-gray-400 flex items-center gap-1"><Clock className="w-3 h-3" />{alert.time}</span>
+                        <span className="text-[10px] dark:text-gray-400 text-surface-500">{alert.vehicleId} — {driver?.fullName || alert.driverId}</span>
+                        <span className="text-[10px] dark:text-gray-400 text-surface-500 flex items-center gap-1"><Clock className="w-3 h-3" />{alert.time}</span>
                         <span className={`status-badge border text-[10px] ${getSeverityBadge(alert.severity)}`}>{alert.severity}</span>
-                        <span className="text-[10px] text-gray-400 capitalize">{alert.type.replace('_', ' ')}</span>
+                        <span className="text-[10px] dark:text-gray-400 text-surface-500 capitalize">{alert.type.replace('_', ' ')}</span>
                       </div>
                     </div>
                     {!alert.acknowledged && (

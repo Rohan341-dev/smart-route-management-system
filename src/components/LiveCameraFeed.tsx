@@ -33,10 +33,10 @@ export default function LiveCameraFeed({ vehicleId = 'BUS-107', driverName = 'Su
 
   return (
     <div className="glass-card overflow-hidden">
-      <div className="p-3 border-b border-white/5 flex items-center justify-between">
+      <div className="p-3 border-b dark:border-white/5 border-surface-200 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Monitor className="w-4 h-4 text-electric-400" />
-          <h3 className="text-xs font-bold text-white">LIVE CAMERA FEED</h3>
+          <h3 className="text-xs font-bold dark:text-white text-surface-900">LIVE CAMERA FEED</h3>
         </div>
         <div className="flex items-center gap-2">
           {connectionState === 'connected' ? (
@@ -71,10 +71,10 @@ export default function LiveCameraFeed({ vehicleId = 'BUS-107', driverName = 'Su
         />
 
         {!remoteStream && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy-900/80 p-4">
-            <VideoOff className="w-10 h-10 text-gray-500 mb-3" />
-            <p className="text-xs text-gray-400 text-center mb-2">Waiting for driver camera...</p>
-            <p className="text-[10px] text-gray-500 text-center mb-3">Open /driver on phone to connect</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center dark:bg-navy-900/80 bg-surface-100/80 p-4">
+            <VideoOff className="w-10 h-10 dark:text-gray-500 text-surface-500 mb-3" />
+            <p className="text-xs dark:text-gray-400 text-surface-500 text-center mb-2">Waiting for driver camera...</p>
+            <p className="text-[10px] dark:text-gray-500 text-surface-500 text-center mb-3">Open /driver on phone to connect</p>
             <button
               onClick={copyLink}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-electric-600/20 hover:bg-electric-600/30 rounded-lg text-[10px] text-electric-400 transition-colors"

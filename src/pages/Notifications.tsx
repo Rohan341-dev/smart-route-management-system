@@ -38,19 +38,19 @@ export default function Notifications() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Total</p>
-          <p className="text-2xl font-bold text-white">{notifications.length}</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Total</p>
+          <p className="text-2xl font-bold dark:text-white text-surface-900">{notifications.length}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Unread</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Unread</p>
           <p className="text-2xl font-bold text-red-400">{unreadCount}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Critical</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Critical</p>
           <p className="text-2xl font-bold text-orange-400">{notifications.filter(n => n.severity === 'critical').length}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Today</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Today</p>
           <p className="text-2xl font-bold text-electric-400">{notifications.length}</p>
         </div>
       </div>
@@ -77,7 +77,7 @@ export default function Notifications() {
           <div
             key={n.id}
             onClick={() => markNotificationRead(n.id)}
-            className={`glass-card p-4 cursor-pointer hover:bg-white/5 transition-all ${
+            className={`glass-card p-4 cursor-pointer dark:hover:bg-white/5 hover:bg-surface-50 transition-all ${
               !n.read ? 'border-l-4 border-l-electric-500' : 'opacity-60'
             }`}
           >
@@ -88,15 +88,15 @@ export default function Notifications() {
               <div className="flex-1">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="text-sm font-bold text-white">{n.title}</p>
-                    <p className="text-xs text-gray-300 mt-0.5">{n.message}</p>
+                    <p className="text-sm font-bold dark:text-white text-surface-900">{n.title}</p>
+                    <p className="text-xs dark:text-gray-300 text-surface-600 mt-0.5">{n.message}</p>
                   </div>
-                  <span className="text-[10px] text-gray-400 whitespace-nowrap">{n.time}</span>
+                  <span className="text-[10px] dark:text-gray-400 text-surface-500 whitespace-nowrap">{n.time}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-navy-700/50 text-gray-400 capitalize">{n.type}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full dark:bg-navy-700/50 bg-surface-100 dark:text-gray-400 text-surface-500 capitalize">{n.type}</span>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full border ${getSeverityColor(n.severity)}`}>{n.severity}</span>
-                  {n.vehicleId && <span className="text-[10px] text-gray-400">{n.vehicleId}</span>}
+                  {n.vehicleId && <span className="text-[10px] dark:text-gray-400 text-surface-500">{n.vehicleId}</span>}
                   {!n.read && <span className="w-2 h-2 bg-electric-500 rounded-full"></span>}
                 </div>
               </div>

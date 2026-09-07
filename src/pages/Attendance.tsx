@@ -72,22 +72,22 @@ export default function Attendance() {
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
+          <h1 className="text-lg font-bold dark:text-white text-surface-900 flex items-center gap-2">
             <QrCode className="w-5 h-5 text-electric-400" />
             QR Student Attendance
           </h1>
-          <p className="text-xs text-gray-400 mt-0.5">Scan student QR codes to record bus boarding and drop attendance in real time.</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500 mt-0.5">Scan student QR codes to record bus boarding and drop attendance in real time.</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400 bg-navy-700/50 px-3 py-1.5 rounded-lg">
+          <div className="flex items-center gap-1.5 text-[10px] dark:text-gray-400 text-surface-500 dark:bg-navy-700/50 bg-surface-100 px-3 py-1.5 rounded-lg">
             <Calendar className="w-3 h-3" />
             {today}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400 bg-navy-700/50 px-3 py-1.5 rounded-lg">
+          <div className="flex items-center gap-1.5 text-[10px] dark:text-gray-400 text-surface-500 dark:bg-navy-700/50 bg-surface-100 px-3 py-1.5 rounded-lg">
             <Bus className="w-3 h-3" />
             {selectedAttendanceVehicle}
           </div>
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-400 bg-navy-700/50 px-3 py-1.5 rounded-lg">
+          <div className="flex items-center gap-1.5 text-[10px] dark:text-gray-400 text-surface-500 dark:bg-navy-700/50 bg-surface-100 px-3 py-1.5 rounded-lg">
             <Route className="w-3 h-3" />
             {selectedAttendanceRoute}
           </div>
@@ -104,7 +104,7 @@ export default function Attendance() {
       <div className="glass-card p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
-            <label className="text-[10px] text-gray-400 uppercase tracking-wider">Select Vehicle</label>
+            <label className="text-[10px] dark:text-gray-400 text-surface-500 uppercase tracking-wider">Select Vehicle</label>
             <select
               value={selectedAttendanceVehicle}
               onChange={e => setSelectedAttendanceVehicle(e.target.value)}
@@ -117,7 +117,7 @@ export default function Attendance() {
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-gray-400 uppercase tracking-wider">Select Route</label>
+            <label className="text-[10px] dark:text-gray-400 text-surface-500 uppercase tracking-wider">Select Route</label>
             <select
               value={selectedAttendanceRoute}
               onChange={e => setSelectedAttendanceRoute(e.target.value)}
@@ -130,7 +130,7 @@ export default function Attendance() {
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-gray-400 uppercase tracking-wider">Trip Stage</label>
+            <label className="text-[10px] dark:text-gray-400 text-surface-500 uppercase tracking-wider">Trip Stage</label>
             <select
               value={selectedTripStage}
               onChange={e => setSelectedTripStage(e.target.value as TripStage)}
@@ -144,7 +144,7 @@ export default function Attendance() {
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] text-gray-400 uppercase tracking-wider">Session</label>
+            <label className="text-[10px] dark:text-gray-400 text-surface-500 uppercase tracking-wider">Session</label>
             {!attendanceSession?.isActive ? (
               <button onClick={startAttendanceSession} className="w-full btn-success text-xs py-3 flex items-center justify-center gap-2">
                 <Play className="w-4 h-4" /> Start Session
@@ -177,12 +177,12 @@ export default function Attendance() {
               <p className={`text-sm font-bold ${lastScanResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
                 {lastScanResult.success ? 'Student Verified' : 'Scan Failed'}
               </p>
-              <p className="text-xs text-gray-300 mt-0.5">{lastScanResult.message}</p>
+              <p className="text-xs dark:text-gray-300 text-surface-600 mt-0.5">{lastScanResult.message}</p>
               {lastScanResult.student && (
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] text-gray-400">{lastScanResult.student.studentId}</span>
-                  <span className="text-[10px] text-gray-400">{lastScanResult.student.assignedVehicleId}</span>
-                  <span className="text-[10px] text-gray-400">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <span className="text-[10px] dark:text-gray-400 text-surface-500">{lastScanResult.student.studentId}</span>
+                  <span className="text-[10px] dark:text-gray-400 text-surface-500">{lastScanResult.student.assignedVehicleId}</span>
+                  <span className="text-[10px] dark:text-gray-400 text-surface-500">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               )}
             </div>
@@ -195,7 +195,7 @@ export default function Attendance() {
         <div className="space-y-4">
           {/* QR Camera Scanner */}
           <div className="glass-card p-4">
-            <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-bold dark:text-white text-surface-900 mb-3 flex items-center gap-2">
               <ScanLine className="w-4 h-4 text-electric-400" />
               QR Camera Scanner
             </h3>
@@ -204,7 +204,7 @@ export default function Attendance() {
 
           {/* Demo Scanner */}
           <div className="glass-card p-4">
-            <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-bold dark:text-white text-surface-900 mb-3 flex items-center gap-2">
               <QrCode className="w-4 h-4 text-amber-400" />
               Demo QR Scanner
             </h3>
@@ -220,7 +220,7 @@ export default function Attendance() {
           {/* Filters */}
           <div className="flex flex-col md:flex-row items-start md:items-center gap-3">
             <div className="relative flex-1 w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-gray-400 text-surface-500" />
               <input
                 type="text"
                 placeholder="Search student..."
@@ -237,7 +237,7 @@ export default function Attendance() {
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-medium transition-all ${
                     filterStatus === status
                       ? 'bg-electric-600 text-white'
-                      : 'bg-navy-700/50 text-gray-400 hover:bg-navy-600/50'
+                      : 'dark:bg-navy-700/50 bg-surface-100 dark:text-gray-400 text-surface-500 dark:hover:bg-navy-600/50 hover:bg-surface-200'
                   }`}
                 >
                   {status === 'all' ? 'All' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -251,19 +251,19 @@ export default function Attendance() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">Student</th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">ID</th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">Class</th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">Boarding Time</th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">Drop Time</th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">Status</th>
-                    <th className="text-left text-[10px] font-bold text-gray-400 uppercase px-4 py-3">QR</th>
+                  <tr className="border-b dark:border-white/5 border-surface-200">
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Student</th>
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">ID</th>
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Class</th>
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Boarding Time</th>
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Drop Time</th>
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Status</th>
+                    <th className="text-left text-[10px] font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">QR</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((s) => (
-                    <tr key={s.id} className={`border-b border-white/5 hover:bg-white/5 transition-all ${
+                    <tr key={s.id} className={`border-b dark:border-white/5 border-surface-200 dark:hover:bg-white/5 hover:bg-surface-50 transition-all ${
                       lastScanResult?.student?.id === s.id ? 'bg-electric-500/10' : ''
                     }`}>
                       <td className="px-4 py-3">
@@ -271,13 +271,13 @@ export default function Attendance() {
                           <div className="w-8 h-8 rounded-lg bg-electric-600/20 flex items-center justify-center">
                             <span className="text-xs font-bold text-electric-400">{s.fullName[0]}</span>
                           </div>
-                          <p className="text-xs font-bold text-white">{s.fullName}</p>
+                          <p className="text-xs font-bold dark:text-white text-surface-900">{s.fullName}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-[10px] text-gray-400">{s.studentId}</td>
-                      <td className="px-4 py-3 text-xs text-white">{s.class}-{s.section}</td>
-                      <td className="px-4 py-3 text-xs text-white">{s.lastBoardedAt || '--'}</td>
-                      <td className="px-4 py-3 text-xs text-white">{s.lastDroppedAt || '--'}</td>
+                      <td className="px-4 py-3 text-[10px] dark:text-gray-400 text-surface-500">{s.studentId}</td>
+                      <td className="px-4 py-3 text-xs dark:text-white text-surface-900">{s.class}-{s.section}</td>
+                      <td className="px-4 py-3 text-xs dark:text-white text-surface-900">{s.lastBoardedAt || '--'}</td>
+                      <td className="px-4 py-3 text-xs dark:text-white text-surface-900">{s.lastDroppedAt || '--'}</td>
                       <td className="px-4 py-3">
                         <AttendanceStatusBadge status={s.attendanceStatus} />
                       </td>
@@ -307,7 +307,7 @@ export default function Attendance() {
                   {filtered.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center">
-                        <p className="text-xs text-gray-400">No students found</p>
+                        <p className="text-xs dark:text-gray-400 text-surface-500">No students found</p>
                       </td>
                     </tr>
                   )}
@@ -318,13 +318,13 @@ export default function Attendance() {
 
           {/* Recent Attendance Events */}
           <div className="glass-card p-4">
-            <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
+            <h3 className="text-xs font-bold dark:text-white text-surface-900 mb-3 flex items-center gap-2">
               <Clock className="w-4 h-4 text-electric-400" />
               Recent Attendance Events
             </h3>
             <div className="space-y-2 max-h-[200px] overflow-y-auto">
               {attendanceEvents.slice(0, 10).map((event) => (
-                <div key={event.id} className="flex items-center gap-3 p-2 rounded-lg bg-navy-700/30">
+                <div key={event.id} className="flex items-center gap-3 p-2 rounded-lg dark:bg-navy-700/30 bg-surface-50">
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${
                     event.type === 'boarded' ? 'bg-emerald-500/20 text-emerald-400' :
                     event.type === 'dropped' ? 'bg-purple-500/20 text-purple-400' :
@@ -336,13 +336,13 @@ export default function Attendance() {
                      <AlertTriangle className="w-3.5 h-3.5" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] text-white truncate">{event.message}</p>
-                    <p className="text-[9px] text-gray-400">{event.time} — {event.vehicleId}</p>
+                    <p className="text-[11px] dark:text-white text-surface-900 truncate">{event.message}</p>
+                    <p className="text-[9px] dark:text-gray-400 text-surface-500">{event.time} — {event.vehicleId}</p>
                   </div>
                 </div>
               ))}
               {attendanceEvents.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-4">No attendance events yet</p>
+                <p className="text-xs dark:text-gray-400 text-surface-500 text-center py-4">No attendance events yet</p>
               )}
             </div>
           </div>

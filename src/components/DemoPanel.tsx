@@ -81,19 +81,19 @@ export default function DemoPanel() {
       </button>
 
       {isOpen && (
-        <div className="bg-navy-800 border border-white/10 rounded-tl-2xl w-[380px] max-h-[70vh] overflow-y-auto shadow-2xl">
-          <div className="p-4 border-b border-white/5">
+        <div className="dark:bg-navy-800 bg-white dark:border dark:border-white/10 border border-surface-200 rounded-tl-2xl w-[380px] max-h-[70vh] overflow-y-auto shadow-2xl">
+          <div className="p-4 border-b dark:border-white/5 border-surface-200">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
               <span className="text-xs font-bold text-emerald-400">DEMO MODE — LIVE SIMULATION</span>
             </div>
-            <p className="text-[10px] text-gray-400 mt-1">Use these controls to simulate the complete workflow</p>
+            <p className="text-[10px] dark:text-gray-400 text-surface-500 mt-1">Use these controls to simulate the complete workflow</p>
           </div>
 
           <div className="p-4 space-y-4">
             {sections.map((section) => (
               <div key={section.title}>
-                <h4 className="text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">{section.title}</h4>
+                <h4 className="text-xs font-bold dark:text-gray-300 text-surface-600 mb-2 uppercase tracking-wider">{section.title}</h4>
                 <div className="grid grid-cols-2 gap-2">
                   {section.items.map((item) => {
                     const Icon = item.icon;
@@ -114,8 +114,8 @@ export default function DemoPanel() {
             ))}
           </div>
 
-          <div className="p-4 border-t border-white/5">
-            <h4 className="text-xs font-bold text-gray-300 mb-2 uppercase tracking-wider">Quick Scenario</h4>
+          <div className="p-4 border-t dark:border-white/5 border-surface-200">
+            <h4 className="text-xs font-bold dark:text-gray-300 text-surface-600 mb-2 uppercase tracking-wider">Quick Scenario</h4>
             <button
               onClick={async () => {
                 simulateDrowsiness();

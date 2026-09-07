@@ -89,8 +89,8 @@ export default function Dashboard() {
                 </div>
                 <span className="text-[10px] text-gray-400 bg-white/5 px-2 py-1 rounded-full">{card.change}</span>
               </div>
-              <p className="text-2xl font-bold text-white">{card.value}</p>
-              <p className="text-xs text-gray-400 mt-1">{card.label}</p>
+              <p className="text-2xl font-bold dark:text-white text-surface-900">{card.value}</p>
+              <p className="text-xs dark:text-gray-400 text-surface-500 mt-1">{card.label}</p>
             </div>
           );
         })}
@@ -139,17 +139,17 @@ export default function Dashboard() {
 
       {/* Attendance Overview */}
       <div className="glass-card p-6">
-        <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4 flex items-center gap-2">
           <QrCode className="w-4 h-4 text-electric-400" />
           Today's Bus Attendance
         </h3>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
           <div className="flex-1 w-full">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-400">{studentsPickedUp + studentsOnBus + studentsDropped} / {totalAssignedStudents} Students</span>
+              <span className="text-xs dark:text-gray-400 text-surface-500">{studentsPickedUp + studentsOnBus + studentsDropped} / {totalAssignedStudents} Students</span>
               <span className="text-xs font-bold text-electric-400">{attendanceRate}% Attendance</span>
             </div>
-            <div className="h-3 bg-navy-600 rounded-full overflow-hidden">
+            <div className="h-3 dark:bg-navy-600 bg-surface-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-electric-500 to-electric-600 rounded-full transition-all duration-500"
                 style={{ width: `${attendanceRate}%` }}

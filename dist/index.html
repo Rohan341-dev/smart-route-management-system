@@ -9,10 +9,26 @@
     <meta name="theme-color" content="#0a0f1e" />
     <title>SMART ROUTE - AI Driver Monitoring + SOS Emergency System</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script type="module" crossorigin src="/assets/index-aC5SbPCa.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DqHoVK19.css">
+    <script>
+      (function() {
+        try {
+          var theme = localStorage.getItem('smartbus-theme') || 'system';
+          var resolved = 'dark';
+          if (theme === 'light') {
+            resolved = 'light';
+          } else if (theme === 'system') {
+            resolved = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          }
+          document.documentElement.classList.add(resolved);
+        } catch(e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-nGQCGkdt.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CyoCN4ox.css">
   </head>
-  <body class="bg-navy-900 text-white">
+  <body class="bg-navy-900 dark:bg-navy-900 bg-surface-50 text-white dark:text-white text-surface-900 antialiased transition-colors duration-200">
     <div id="root"></div>
   </body>
 </html>

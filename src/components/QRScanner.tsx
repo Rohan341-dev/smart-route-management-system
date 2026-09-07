@@ -84,7 +84,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
 
   return (
     <div className="space-y-3">
-      <div className="relative bg-navy-900 rounded-2xl overflow-hidden border border-white/10" style={{ minHeight: '240px' }}>
+      <div className="relative dark:bg-navy-900 bg-surface-100 rounded-2xl overflow-hidden border dark:border-white/10 border-surface-200" style={{ minHeight: '240px' }}>
         <video
           ref={videoRef}
           autoPlay
@@ -97,8 +97,8 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
 
         {!cameraActive && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-            <div className="w-16 h-16 rounded-full bg-navy-700/50 flex items-center justify-center mb-3">
-              <Camera className="w-8 h-8 text-gray-500" />
+            <div className="w-16 h-16 rounded-full dark:bg-navy-700/50 bg-surface-200 flex items-center justify-center mb-3">
+              <Camera className="w-8 h-8 dark:text-gray-500 text-surface-500" />
             </div>
             {cameraError ? (
               <div className="text-center">
@@ -109,8 +109,8 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
               </div>
             ) : (
               <div className="text-center">
-                <p className="text-xs text-gray-400 mb-1">Camera inactive</p>
-                <p className="text-[10px] text-gray-500">Click start to activate QR scanner</p>
+                <p className="text-xs dark:text-gray-400 text-surface-500 mb-1">Camera inactive</p>
+                <p className="text-[10px] dark:text-gray-500 text-surface-500">Click start to activate QR scanner</p>
               </div>
             )}
           </div>
@@ -145,7 +145,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
             <button onClick={stopCamera} className="flex-1 btn-danger text-xs py-2.5 flex items-center justify-center gap-2">
               <CameraOff className="w-4 h-4" /> Stop Camera
             </button>
-            <button onClick={switchCamera} className="px-4 py-2.5 bg-navy-700 hover:bg-navy-600 rounded-xl text-xs text-gray-300 flex items-center gap-2 transition-all">
+            <button onClick={switchCamera} className="px-4 py-2.5 dark:bg-navy-700 bg-surface-200 dark:hover:bg-navy-600 hover:bg-surface-300 rounded-xl text-xs dark:text-gray-300 text-surface-600 flex items-center gap-2 transition-all">
               <RefreshCw className="w-4 h-4" />
             </button>
           </>

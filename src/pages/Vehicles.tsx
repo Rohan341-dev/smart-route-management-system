@@ -40,59 +40,59 @@ export default function Vehicles() {
           <div className="lg:col-span-2 glass-card p-6">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-xl font-bold text-white">{detail.id}</h2>
-                <p className="text-sm text-gray-400">{detail.registrationNumber}</p>
+                <h2 className="text-xl font-bold dark:text-white text-surface-900">{detail.id}</h2>
+                <p className="text-sm dark:text-gray-400 text-surface-500">{detail.registrationNumber}</p>
               </div>
               <span className={`status-badge border ${getStatusBadge(detail.status)}`}>{detail.status.replace('_', ' ').toUpperCase()}</span>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-navy-700/30 rounded-xl p-4">
-                <p className="text-xs text-gray-400">Type</p>
-                <p className="text-sm font-bold text-white">{detail.type}</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Type</p>
+                <p className="text-sm font-bold dark:text-white text-surface-900">{detail.type}</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-4">
-                <p className="text-xs text-gray-400">Capacity</p>
-                <p className="text-sm font-bold text-white">{detail.capacity} seats</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Capacity</p>
+                <p className="text-sm font-bold dark:text-white text-surface-900">{detail.capacity} seats</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-4">
-                <p className="text-xs text-gray-400">Speed</p>
-                <p className="text-sm font-bold text-white">{detail.speed} km/h</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Speed</p>
+                <p className="text-sm font-bold dark:text-white text-surface-900">{detail.speed} km/h</p>
               </div>
-              <div className="bg-navy-700/30 rounded-xl p-4">
-                <p className="text-xs text-gray-400">Students</p>
-                <p className="text-sm font-bold text-white">{detail.currentStudents}/{detail.capacity}</p>
+              <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-4">
+                <p className="text-xs dark:text-gray-400 text-surface-500">Students</p>
+                <p className="text-sm font-bold dark:text-white text-surface-900">{detail.currentStudents}/{detail.capacity}</p>
               </div>
             </div>
           </div>
           <div className="space-y-4">
             <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-white mb-3">Assigned Driver</h3>
+              <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-3">Assigned Driver</h3>
               {detailDriver && (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-electric-600/20 flex items-center justify-center">
                     <span className="text-sm font-bold text-electric-400">{detailDriver.fullName[0]}</span>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-white">{detailDriver.fullName}</p>
-                    <p className="text-[10px] text-gray-400">{detailDriver.id} — Score: {detailDriver.safetyScore}/100</p>
+                    <p className="text-xs font-bold dark:text-white text-surface-900">{detailDriver.fullName}</p>
+                    <p className="text-[10px] dark:text-gray-400 text-surface-500">{detailDriver.id} — Score: {detailDriver.safetyScore}/100</p>
                   </div>
                 </div>
               )}
             </div>
             <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-white mb-3">System IDs</h3>
+              <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-3">System IDs</h3>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-gray-400">GPS Device</span><span className="text-white">{detail.gpsDeviceId}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Dash Camera</span><span className="text-white">{detail.dashCameraId}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Route</span><span className="text-white">{detail.assignedRoute}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">GPS Device</span><span className="dark:text-white text-surface-900">{detail.gpsDeviceId}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Dash Camera</span><span className="dark:text-white text-surface-900">{detail.dashCameraId}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Route</span><span className="dark:text-white text-surface-900">{detail.assignedRoute}</span></div>
               </div>
             </div>
             <div className="glass-card p-4">
-              <h3 className="text-sm font-bold text-white mb-3">Maintenance</h3>
+              <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-3">Maintenance</h3>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-gray-400">Last Service</span><span className="text-white">{detail.maintenanceDate}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Insurance</span><span className="text-white">{detail.insuranceExpiry}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Fitness</span><span className="text-white">{detail.fitnessExpiry}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Last Service</span><span className="dark:text-white text-surface-900">{detail.maintenanceDate}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Insurance</span><span className="dark:text-white text-surface-900">{detail.insuranceExpiry}</span></div>
+                <div className="flex justify-between"><span className="dark:text-gray-400 text-surface-500">Fitness</span><span className="dark:text-white text-surface-900">{detail.fitnessExpiry}</span></div>
               </div>
             </div>
           </div>
@@ -106,7 +106,7 @@ export default function Vehicles() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-gray-400 text-surface-500" />
             <input type="text" placeholder="Search vehicles..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10" />
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input-field w-auto">
@@ -128,33 +128,33 @@ export default function Vehicles() {
         {filtered.map((v) => {
           const driver = drivers.find(d => d.id === v.assignedDriver);
           return (
-            <div key={v.id} onClick={() => setSelectedDetail(v.id)} className="glass-card p-4 hover:bg-white/5 cursor-pointer transition-all group">
+            <div key={v.id} onClick={() => setSelectedDetail(v.id)} className="glass-card p-4 dark:hover:bg-white/5 hover:bg-surface-50 cursor-pointer transition-all group">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <h3 className="text-sm font-bold text-white group-hover:text-electric-400 transition-colors">{v.id}</h3>
-                  <p className="text-[10px] text-gray-400">{v.registrationNumber}</p>
+                  <h3 className="text-sm font-bold dark:text-white text-surface-900 group-hover:text-electric-400 transition-colors">{v.id}</h3>
+                  <p className="text-[10px] dark:text-gray-400 text-surface-500">{v.registrationNumber}</p>
                 </div>
                 <span className={`status-badge border text-[10px] ${getStatusBadge(v.status)}`}>{v.status.replace('_', ' ')}</span>
               </div>
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Driver</span>
-                  <span className="text-white">{driver?.fullName || 'None'}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Driver</span>
+                  <span className="dark:text-white text-surface-900">{driver?.fullName || 'None'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Speed</span>
-                  <span className="text-white">{v.speed} km/h</span>
+                  <span className="dark:text-gray-400 text-surface-500">Speed</span>
+                  <span className="dark:text-white text-surface-900">{v.speed} km/h</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Students</span>
-                  <span className="text-white">{v.currentStudents}/{v.capacity}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Students</span>
+                  <span className="dark:text-white text-surface-900">{v.currentStudents}/{v.capacity}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Route</span>
-                  <span className="text-white">{v.assignedRoute}</span>
+                  <span className="dark:text-gray-400 text-surface-500">Route</span>
+                  <span className="dark:text-white text-surface-900">{v.assignedRoute}</span>
                 </div>
               </div>
-              <div className="w-full h-1.5 bg-navy-600 rounded-full mt-3 overflow-hidden">
+              <div className="w-full h-1.5 dark:bg-navy-600 bg-surface-200 rounded-full mt-3 overflow-hidden">
                 <div className="h-full bg-electric-500 rounded-full" style={{ width: `${(v.currentStudents / v.capacity) * 100}%` }}></div>
               </div>
             </div>

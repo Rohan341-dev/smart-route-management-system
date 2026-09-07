@@ -39,19 +39,19 @@ export default function Students() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Total Students</p>
-          <p className="text-2xl font-bold text-white">{statusCounts.total}</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Total Students</p>
+          <p className="text-2xl font-bold dark:text-white text-surface-900">{statusCounts.total}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Waiting</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Waiting</p>
           <p className="text-2xl font-bold text-amber-400">{statusCounts.waiting}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">On Bus</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">On Bus</p>
           <p className="text-2xl font-bold text-emerald-400">{statusCounts.on_bus}</p>
         </div>
         <div className="kpi-card">
-          <p className="text-xs text-gray-400">Dropped</p>
+          <p className="text-xs dark:text-gray-400 text-surface-500">Dropped</p>
           <p className="text-2xl font-bold text-purple-400">{statusCounts.dropped}</p>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default function Students() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 flex-wrap">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-gray-400 text-surface-500" />
             <input type="text" placeholder="Search students..." value={search} onChange={e => setSearch(e.target.value)} className="input-field pl-10" />
           </div>
           <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="input-field w-auto">
@@ -82,48 +82,48 @@ export default function Students() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-white/5">
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Student</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Class</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Bus</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Pickup</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Drop</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Status</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">Parent</th>
-                <th className="text-left text-xs font-bold text-gray-400 uppercase px-4 py-3">QR</th>
+              <tr className="border-b dark:border-white/5 border-surface-200">
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Student</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Class</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Bus</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Pickup</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Drop</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Status</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Parent</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">QR</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((s) => (
-                <tr key={s.id} className="border-b border-white/5 hover:bg-white/5 transition-all">
+                <tr key={s.id} className="border-b dark:border-white/5 border-surface-200 dark:hover:bg-white/5 hover:bg-surface-50 transition-all">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-electric-600/20 flex items-center justify-center">
                         <span className="text-xs font-bold text-electric-400">{s.fullName[0]}</span>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-white">{s.fullName}</p>
-                        <p className="text-[10px] text-gray-400">{s.id}</p>
+                        <p className="text-xs font-bold dark:text-white text-surface-900">{s.fullName}</p>
+                        <p className="text-[10px] dark:text-gray-400 text-surface-500">{s.id}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-white">{s.class}-{s.section}</td>
-                  <td className="px-4 py-3 text-xs text-white">{s.assignedBus}</td>
+                  <td className="px-4 py-3 text-xs dark:text-white text-surface-900">{s.class}-{s.section}</td>
+                  <td className="px-4 py-3 text-xs dark:text-white text-surface-900">{s.assignedBus}</td>
                   <td className="px-4 py-3">
-                    <p className="text-xs text-white">{s.pickupStop}</p>
-                    {s.pickupTime && <p className="text-[10px] text-gray-400">{s.pickupTime}</p>}
+                    <p className="text-xs dark:text-white text-surface-900">{s.pickupStop}</p>
+                    {s.pickupTime && <p className="text-[10px] dark:text-gray-400 text-surface-500">{s.pickupTime}</p>}
                   </td>
                   <td className="px-4 py-3">
-                    <p className="text-xs text-white">{s.dropStop}</p>
-                    {s.dropTime && <p className="text-[10px] text-gray-400">{s.dropTime}</p>}
+                    <p className="text-xs dark:text-white text-surface-900">{s.dropStop}</p>
+                    {s.dropTime && <p className="text-[10px] dark:text-gray-400 text-surface-500">{s.dropTime}</p>}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`status-badge border text-[10px] ${getStatusBadge(s.status)}`}>{s.status.replace('_', ' ')}</span>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-gray-400" />
-                      <span className="text-[10px] text-gray-400">{s.parentPhone}</span>
+                      <Phone className="w-3 h-3 dark:text-gray-400 text-surface-500" />
+                      <span className="text-[10px] dark:text-gray-400 text-surface-500">{s.parentPhone}</span>
                     </div>
                   </td>
                   <td className="px-4 py-3">
