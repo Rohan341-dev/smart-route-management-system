@@ -26,7 +26,7 @@ export default function Header() {
   };
 
   return (
-    <header className={`h-16 backdrop-blur-md border-b flex items-center justify-between px-4 md:px-6 transition-colors duration-200 dark:bg-navy-800/80 dark:border-white/5 bg-white border-surface-200 ${activeSOS ? 'dark:bg-red-900/30 bg-red-50' : ''}`}>
+    <header className={`h-16 backdrop-blur-md border-b flex items-center justify-between px-3 md:px-6 transition-colors duration-200 dark:bg-navy-800/80 dark:border-white/5 bg-white border-surface-200 ${activeSOS ? 'dark:bg-red-900/30 bg-red-50' : ''}`}>
       <div className="flex items-center gap-4">
         <div>
           <h2 className="text-lg font-bold dark:text-white text-surface-900">{pageTitle[currentPage] || 'Dashboard'}</h2>
@@ -34,9 +34,9 @@ export default function Header() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
         {demoModeActive && (
-          <span className="hidden md:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-semibold border border-emerald-500/30">
+          <span className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-emerald-500/20 text-emerald-400 rounded-full text-xs font-semibold border border-emerald-500/30">
             <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
             DEMO MODE
           </span>

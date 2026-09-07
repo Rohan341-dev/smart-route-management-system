@@ -76,12 +76,15 @@ export interface Student {
   pickupTime?: string;
   dropTime?: string;
   qrCode: string;
+  qrId: string;
+  qrEnabled: boolean;
   assignedVehicleId: string;
   assignedRouteId: string;
   attendanceStatus: StudentAttendanceStatus;
   lastBoardedAt?: string;
   lastDroppedAt?: string;
   attendanceHistory: AttendanceRecord[];
+  createdAt?: string;
 }
 
 export interface Route {

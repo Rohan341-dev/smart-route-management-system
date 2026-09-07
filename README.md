@@ -1,15 +1,20 @@
 # Smart Route Management System
 
-A comprehensive school bus fleet management platform with real-time GPS tracking, driver monitoring, SOS emergency system, and student safety features.
+A comprehensive school bus fleet management platform with real-time GPS tracking, driver monitoring, SOS emergency system, QR-based student attendance, and dark/light mode support.
+
+## Live Demo
+
+**https://sms.codenestnep.com**
 
 ## Tech Stack
 
 - **Frontend:** React 18, TypeScript, Vite
-- **Styling:** Tailwind CSS
+- **Styling:** Tailwind CSS (dark mode: `class` strategy)
 - **State Management:** Zustand
 - **Maps:** Leaflet + React-Leaflet
 - **Charts:** Recharts
 - **Face Detection:** face-api.js, MediaPipe
+- **QR Codes:** qrcode.react
 - **Routing:** React Router DOM
 - **Icons:** Lucide React
 
@@ -51,6 +56,26 @@ A comprehensive school bus fleet management platform with real-time GPS tracking
 - Route assignment per student
 - Real-time student status (waiting, picked_up, on_bus, dropped, absent)
 
+### QR-Based Student Bus Attendance
+- Unique QR code generation per student (display/print ready)
+- QR scanner for real-time attendance marking on bus
+- Scan-by-ID manual entry fallback
+- Attendance summary with trip-level and daily statistics
+- Pickup/drop tracking per student per trip
+- Demo QR scanner for testing without camera
+- Attendance status badges (Present/Absent/Late/Excused)
+
+### Dark Mode / Light Mode / System Default
+- Three theme options: Light, Dark, System Default
+- Theme toggle dropdown in header
+- Theme persisted in localStorage (`smartbus-theme`)
+- Flash prevention script in `index.html` (reads theme before render)
+- Theme-aware Leaflet map tiles (light basemap / dark basemap)
+- Theme-aware Recharts (grid, axis, tooltip colors adapt)
+- QR codes always render with white background regardless of theme
+- SOS/emergency colors remain highly visible in both themes
+- Tailwind `darkMode: 'class'` strategy — classes applied to `<html>`
+
 ### Route Management
 - Route creation with multiple stops
 - Pickup, drop, and school stop types
@@ -83,39 +108,45 @@ A comprehensive school bus fleet management platform with real-time GPS tracking
 ```
 src/
 ├── components/
-│   ├── DemoPanel.tsx         # Demo mode controls
-│   ├── Header.tsx            # Top navigation header
-│   ├── LiveCameraFeed.tsx    # Webcam feed for face detection
-│   ├── MobileNav.tsx         # Mobile bottom navigation
-│   └── Sidebar.tsx           # Side navigation menu
+│   ├── AttendanceSummary.tsx    # Attendance stats cards
+│   ├── AttendanceStatusBadge.tsx # Attendance status indicator
+│   ├── DemoPanel.tsx            # Demo mode controls
+│   ├── DemoQRScanner.tsx        # Demo QR scanner (no camera)
+│   ├── Header.tsx               # Top navigation header + theme toggle
+│   ├── LiveCameraFeed.tsx       # Webcam feed for face detection
+│   ├── MobileNav.tsx            # Mobile bottom navigation
+│   ├── QRScanner.tsx            # Real QR scanner (camera-based)
+│   ├── Sidebar.tsx              # Side navigation menu
+│   ├── StudentQRCode.tsx        # Individual student QR code
+│   └── ThemeToggle.tsx          # Light/Dark/System theme dropdown
 ├── data/
-│   ├── mockData.ts           # Sample data for demo
-│   └── types.ts              # TypeScript interfaces
+│   ├── mockData.ts              # Sample data for demo
+│   └── types.ts                 # TypeScript interfaces
 ├── hooks/
-│   ├── useBuzzer.ts          # Audio buzzer for alerts
-│   ├── useFaceDetection.ts   # Face detection & drowsiness
-│   ├── useGPS.ts             # GPS location tracking
-│   └── useWebRTC.ts          # WebRTC camera utilities
+│   ├── useBuzzer.ts             # Audio buzzer for alerts
+│   ├── useFaceDetection.ts      # Face detection & drowsiness
+│   ├── useGPS.ts                # GPS location tracking
+│   └── useWebRTC.ts             # WebRTC camera utilities
 ├── pages/
-│   ├── Dashboard.tsx         # Main dashboard
-│   ├── LiveFleet.tsx         # Live fleet tracking map
-│   ├── Vehicles.tsx          # Vehicle management
-│   ├── Drivers.tsx           # Driver management
-│   ├── Driver.tsx            # Individual driver view
-│   ├── Students.tsx          # Student management
-│   ├── Routes.tsx            # Route management
-│   ├── Trips.tsx             # Trip management
-│   ├── DriverMonitoring.tsx  # Driver face monitoring
-│   ├── Alerts.tsx            # Alert management
-│   ├── SOSEmergency.tsx      # SOS emergency panel
-│   ├── Notifications.tsx     # Notification center
-│   ├── Reports.tsx           # Reports dashboard
-│   └── Settings.tsx          # System settings
+│   ├── Attendance.tsx           # Attendance overview + QR scanner
+│   ├── Dashboard.tsx            # Main dashboard
+│   ├── Driver.tsx               # Individual driver view (mobile)
+│   ├── DriverMonitoring.tsx     # Driver face monitoring
+│   ├── Drivers.tsx              # Driver management
+│   ├── LiveFleet.tsx            # Live fleet tracking map
+│   ├── Notifications.tsx        # Notification center
+│   ├── Reports.tsx              # Reports dashboard
+│   ├── Routes.tsx               # Route management
+│   ├── Settings.tsx             # System settings + Appearance
+│   ├── SOSEmergency.tsx         # SOS emergency panel
+│   ├── Students.tsx             # Student management + QR codes
+│   ├── Trips.tsx                # Trip management
+│   └── Vehicles.tsx             # Vehicle management
 ├── store/
-│   └── useStore.ts           # Zustand state store
-├── App.tsx                   # Main application
-├── main.tsx                  # Entry point
-└── index.css                 # Global styles
+│   └── useStore.ts              # Zustand state store (incl. theme)
+├── App.tsx                      # Main application
+├── main.tsx                     # Entry point
+└── index.css                    # Theme-aware global styles
 ```
 
 ## Getting Started
@@ -151,23 +182,65 @@ npm run build
 npm run preview
 ```
 
+## Deployment (Shared Hosting)
+
+### SSH Setup
+
+```bash
+# Add to ~/.ssh/config
+Host smart-route-deploy
+  HostName sms.codenestnep.com
+  User codenest
+  IdentityFile ~/.ssh/smart_route_key
+  IdentitiesOnly yes
+  StrictHostKeyChecking accept-new
+```
+
+### Deploy
+
+```bash
+# Build
+npm run build
+
+# Upload dist to server
+scp -r dist/* smart-route-deploy:~/sms.codenestnep.com/
+```
+
+### Server Requirements
+
+- Apache with `mod_rewrite` enabled
+- `.htaccess` for SPA routing (React Router):
+```apache
+RewriteEngine On
+RewriteBase /
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+```
+
+### Environment Variables
+
+No `.env` file required — all configuration is in-code.
+
 ## Key Pages
 
 | Page | Description |
 |------|-------------|
-| Dashboard | Overview of all fleet operations |
-| Live Fleet | Real-time map tracking of all vehicles |
+| Dashboard | Overview of all fleet operations + attendance stats |
+| Live Fleet | Real-time map tracking of all vehicles (light/dark tiles) |
 | Vehicles | Vehicle list and management |
 | Drivers | Driver profiles and status |
-| Students | Student list with bus assignments |
+| Students | Student list with QR codes and bus assignments |
 | Routes | Route definitions and stop management |
 | Trips | Trip scheduling and tracking |
+| Attendance | QR-based bus attendance scanning and overview |
 | Driver Monitoring | Live webcam drowsiness detection |
 | Alerts | Driver alert management |
 | SOS Emergency | Emergency response panel |
 | Notifications | System notifications |
 | Reports | Analytics and reporting |
-| Settings | System configuration |
+| Settings | System configuration + Appearance (Light/Dark/System) |
 
 ## License
 

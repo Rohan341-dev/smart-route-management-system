@@ -30,12 +30,10 @@ export default function ThemeToggle() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200"
+        className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl dark:bg-navy-700/50 bg-surface-100 dark:hover:bg-navy-600/50 hover:bg-surface-200 transition-all duration-200"
       >
-        <div className="dark:bg-navy-700/50 bg-surface-100 p-1.5 rounded-lg">
-          <Icon className="w-4 h-4 dark:text-gray-300 text-surface-600" />
-        </div>
-        <span className="hidden md:inline text-xs font-medium dark:text-gray-300 text-surface-600">
+        <Icon className="w-4 h-4 dark:text-gray-300 text-surface-600" />
+        <span className="hidden lg:inline text-xs font-medium dark:text-gray-300 text-surface-600">
           {current.label}
         </span>
         <ChevronDown className={`w-3 h-3 dark:text-gray-400 text-surface-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />

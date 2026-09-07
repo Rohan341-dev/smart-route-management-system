@@ -68,6 +68,9 @@ interface AppState {
   getBusOccupancy: (vehicleId: string) => { total: number; capacity: number; pickedUp: number; onBus: number; dropped: number; absent: number };
   getAttendanceByVehicle: (vehicleId: string) => Student[];
 
+  // Student management actions
+  addStudent: (data: Omit<Student, 'id' | 'studentId' | 'qrCode' | 'qrId' | 'qrEnabled' | 'status' | 'attendanceStatus' | 'attendanceHistory' | 'createdAt'>) => Student;
+
   // Demo simulation actions
   simulateBusMovement: () => void;
   simulateDrowsiness: () => void;
@@ -417,6 +420,53 @@ export const useStore = create<AppState>((set, get) => ({
 
   getAttendanceByVehicle: (vehicleId: string) => {
     return get().students.filter(s => s.assignedVehicleId === vehicleId);
+  },
+
+  // Student management
+  addStudent: (data) => {
+    const state = get();
+    const nextNum = state.students.length + 1;
+    const paddedNum = String(nextNum).padStart(3, '0');
+    const studentId = `STU-${paddedNum}`;
+    const qrId = `SMARTBUS-2026-${studentId}`;
+    const qrCode = qrId;
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    const newStudent: Student = {
+      ...data,
+      id: studentId,
+      studentId,
+      qrCode,
+      qrId,
+      qrEnabled: true,
+      status: 'waiting',
+      attendanceStatus: 'waiting',
+      attendanceHistory: [],
+      createdAt: now,
+    };
+
+    set((s) => ({
+      students: [...s.students, newStudent],
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'student' as const,
+        title: 'Student Added',
+        message: `${newStudent.fullName} added successfully. QR: ${qrId}`,
+        time: now,
+        read: false,
+        severity: 'info' as const,
+      }, ...s.notifications],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'student',
+        message: `New student ${newStudent.fullName} registered - QR auto-generated`,
+        time: now,
+        icon: 'user-plus',
+        severity: 'success' as const,
+      }, ...s.activityLogs],
+    }));
+
+    return newStudent;
   },
 
   markNotificationRead: (id) => set((s) => ({
