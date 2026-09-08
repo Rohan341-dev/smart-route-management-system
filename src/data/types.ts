@@ -228,6 +228,22 @@ export interface DashboardStats {
 
 export type EyeState = 'open' | 'closing' | 'closed';
 
+export interface SmartBusQRPayload {
+  type: 'SMARTBUS_STUDENT';
+  version: 1;
+  studentId: string;
+  qrId: string;
+}
+
+export type TripStatus = 'not_started' | 'starting' | 'in_progress' | 'delayed' | 'stopped' | 'completed';
+
+export interface StopStatus {
+  stopId: string;
+  status: 'pending' | 'arrived' | 'completed';
+  arrivedAt?: string;
+  completedAt?: string;
+}
+
 export interface DriverMonitoringState {
   isMonitoring: boolean;
   faceDetected: boolean;

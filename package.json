@@ -13,6 +13,7 @@
     "@mediapipe/drawing_utils": "^0.3.1675466124",
     "@mediapipe/face_mesh": "^0.4.1633559619",
     "face-api.js": "^0.22.2",
+    "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.400.0",
     "qrcode.react": "^4.2.0",
