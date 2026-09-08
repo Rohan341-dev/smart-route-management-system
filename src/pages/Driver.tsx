@@ -732,6 +732,21 @@ export default function Driver() {
                 >
                   Recalibrate
                 </button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={faceDetection.forceCloseEyes}
+                    className="py-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg text-[10px] text-red-400 font-bold transition-colors"
+                  >
+                    Force CLOSED (Test)
+                  </button>
+                  <button
+                    onClick={faceDetection.forceOpenEyes}
+                    className="py-2 bg-green-600/20 hover:bg-green-600/30 rounded-lg text-[10px] text-green-400 font-bold transition-colors"
+                  >
+                    Force OPEN (Test)
+                  </button>
+                </div>
               </div>
             )}
 

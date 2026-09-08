@@ -422,7 +422,33 @@ export function useFaceDetection() {
 
   const getStream = useCallback(() => streamRef.current, []);
 
-  return { ...state, startDetection, stopDetection, getStream, recalibrate, videoRef, canvasRef };
+  const forceCloseEyes = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      leftEyeOpen: false,
+      rightEyeOpen: false,
+      eyesOpen: false,
+      leftEyeState: 'closed',
+      rightEyeState: 'closed',
+      eyeState: 'closed',
+    }));
+    console.log('[FaceDetect] FORCED eyes CLOSED — UI should show CLOSED');
+  }, []);
+
+  const forceOpenEyes = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      leftEyeOpen: true,
+      rightEyeOpen: true,
+      eyesOpen: true,
+      leftEyeState: 'open',
+      rightEyeState: 'open',
+      eyeState: 'open',
+    }));
+    console.log('[FaceDetect] FORCED eyes OPEN — UI should show OPEN');
+  }, []);
+
+  return { ...state, startDetection, stopDetection, getStream, recalibrate, forceCloseEyes, forceOpenEyes, videoRef, canvasRef };
 }
 
 function calculateEAR(eyePoints: any[]): number {
