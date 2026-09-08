@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'attendance',
     'notifications',
     'safety',
+    'gps',
 ]
 
 MIDDLEWARE = [
@@ -98,3 +99,8 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:5173').split(',')
+
+# SinoTrack GPS Integration
+SINOTRACK_API_URL = config('SINOTRACK_API_URL', default='https://api.sinotrack.com')
+SINOTRACK_USERNAME = config('SINOTRACK_USERNAME', default='')
+SINOTRACK_API_KEY = config('SINOTRACK_API_KEY', default='')

@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/alerts/', include('safety.alert_urls')),
     path('api/emergency/', include('safety.emergency_urls')),
     path('api/trips/', include('routes.trip_urls')),
+    path('api/gps/', include('gps.urls')),
 ]
 
 from rest_framework.decorators import api_view, permission_classes

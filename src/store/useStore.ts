@@ -109,6 +109,20 @@ interface AppState {
   decrementEscalationTimer: () => void;
   updateDriverGPS: (driverId: string, vehicleId: string, gps: { latitude: number; longitude: number; speed: number; heading: number }) => void;
   triggerDrowsiness: () => void;
+  updateFleetGPSFromSinoTrack: (locations: Array<{
+    bus_id: string;
+    bus_db_id: number;
+    latitude: number;
+    longitude: number;
+    speed: number;
+    heading: number;
+    gps_status: string;
+    gsm_signal: string;
+    last_updated: string | null;
+    bus_status: string;
+    current_students: number;
+    capacity: number;
+  }>) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -877,7 +891,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   driverNoResponse: () => {
     const state = get();
+    const vehicle = state.vehicles.find(v => v.id === 'BUS-107') || state.vehicles[0];
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    // Use latest GPS from SinoTrack (currentLat/currentLng) or fallback to base coordinates
+    const gpsLat = vehicle.currentLat || vehicle.lat;
+    const gpsLng = vehicle.currentLng || vehicle.lng;
     set({
       monitoringState: {
         ...state.monitoringState,
@@ -885,28 +903,31 @@ export const useStore = create<AppState>((set, get) => ({
         buzzerActive: false,
       },
       sosAlerts: [{
-        id: `SOS-${Date.now()}`, vehicleId: 'BUS-107', driverId: 'DRV-07',
-        location: { lat: 27.7080, lng: 85.3150 }, time: now,
+        id: `SOS-${Date.now()}`, vehicleId: vehicle.id, driverId: vehicle.assignedDriver,
+        location: { lat: gpsLat, lng: gpsLng }, time: now,
         reason: 'Driver did not respond to drowsiness alert', status: 'active', escalationLevel: 'primary', escalationTimer: 30,
         primaryContact: { name: 'Principal Shrestha', phone: '+977-9841000001', type: 'School Admin', responded: false },
         secondaryContact: { name: 'Transport Manager Lama', phone: '+977-9841000002', type: 'Transport Manager', responded: false },
         authorityContact: { name: 'Emergency Services', phone: '100', type: 'Local Authority', responded: false },
         primaryResponded: false, secondaryResponded: false, authorityResponded: false,
       }],
-      vehicles: state.vehicles.map(v => v.id === 'BUS-107' ? { ...v, status: 'emergency' as const } : v),
-      drivers: state.drivers.map(d => d.id === 'DRV-07' ? { ...d, status: 'emergency' as const } : d),
-      notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'SOS Alert', message: 'SOS triggered on BUS-107 - Driver did not respond to drowsiness alert', time: now, read: false, severity: 'critical', vehicleId: 'BUS-107' }, ...state.notifications],
-      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: 'SOS TRIGGERED on BUS-107 - Driver unresponsive', time: now, icon: 'alert-triangle', severity: 'danger' as const }, ...state.activityLogs],
+      vehicles: state.vehicles.map(v => v.id === vehicle.id ? { ...v, status: 'emergency' as const } : v),
+      drivers: state.drivers.map(d => d.id === vehicle.assignedDriver ? { ...d, status: 'emergency' as const } : d),
+      notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'SOS Emergency - LIVE GPS', message: `SOS triggered on ${vehicle.id} - Driver unresponsive. LIVE LOCATION: ${gpsLat.toFixed(6)}, ${gpsLng.toFixed(6)}`, time: now, read: false, severity: 'critical', vehicleId: vehicle.id }, ...state.notifications],
+      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: `SOS TRIGGERED on ${vehicle.id} - GPS: ${gpsLat.toFixed(6)}, ${gpsLng.toFixed(6)}`, time: now, icon: 'alert-triangle', severity: 'danger' as const }, ...state.activityLogs],
     });
   },
 
   triggerSOS: () => {
     const state = get();
     const v = state.vehicles.find(v => v.id === 'BUS-101') || state.vehicles[0];
+    const gpsLat = v.currentLat || v.lat;
+    const gpsLng = v.currentLng || v.lng;
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     set({
       sosAlerts: [{
         id: `SOS-${Date.now()}`, vehicleId: v.id, driverId: v.assignedDriver,
-        location: { lat: v.lat, lng: v.lng }, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        location: { lat: gpsLat, lng: gpsLng }, time: now,
         reason: 'Manual SOS triggered by driver', status: 'active', escalationLevel: 'primary', escalationTimer: 30,
         primaryContact: { name: 'Principal Shrestha', phone: '+977-9841000001', type: 'School Admin', responded: false },
         secondaryContact: { name: 'Transport Manager Lama', phone: '+977-9841000002', type: 'Transport Manager', responded: false },
@@ -915,8 +936,8 @@ export const useStore = create<AppState>((set, get) => ({
       }],
       vehicles: state.vehicles.map(sv => sv.id === v.id ? { ...sv, status: 'emergency' as any } : sv),
       drivers: state.drivers.map(d => d.id === v.assignedDriver ? { ...d, status: 'emergency' as any } : d),
-      notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'SOS Alert', message: `SOS triggered on ${v.id} - Manual emergency`, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), read: false, severity: 'critical', vehicleId: v.id }, ...state.notifications],
-      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: `SOS TRIGGERED on ${v.id}`, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'alert-triangle', severity: 'danger' }, ...state.activityLogs],
+      notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'SOS Emergency - LIVE GPS', message: `SOS triggered on ${v.id} - Manual emergency. LIVE LOCATION: ${gpsLat.toFixed(6)}, ${gpsLng.toFixed(6)}`, time: now, read: false, severity: 'critical', vehicleId: v.id }, ...state.notifications],
+      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: `SOS TRIGGERED on ${v.id} - GPS: ${gpsLat.toFixed(6)}, ${gpsLng.toFixed(6)}`, time: now, icon: 'alert-triangle', severity: 'danger' }, ...state.activityLogs],
     });
   },
 
@@ -1068,4 +1089,28 @@ export const useStore = create<AppState>((set, get) => ({
       }, ...state.activityLogs],
     };
   },
+
+  updateFleetGPSFromSinoTrack: (locations) => set((s) => ({
+    vehicles: s.vehicles.map(v => {
+      const gps = locations.find(l => l.bus_id === v.id);
+      if (!gps) return v;
+      return {
+        ...v,
+        currentLat: gps.latitude,
+        currentLng: gps.longitude,
+        speed: Math.round(gps.speed),
+        heading: gps.heading,
+        currentStudents: gps.current_students,
+        lastUpdate: gps.last_updated
+          ? new Date(gps.last_updated).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          : v.lastUpdate,
+        lastGpsUpdate: gps.last_updated || undefined,
+        gpsStatus: gps.gps_status as any,
+        gpsSource: 'sinotrack' as const,
+        status: gps.gps_status === 'offline' ? 'offline' as const
+          : gps.bus_status === 'maintenance' ? 'idle' as const
+          : v.status,
+      };
+    }),
+  })),
 }));

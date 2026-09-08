@@ -6,7 +6,7 @@ import { useWebRTC } from '../hooks/useWebRTC';
 import { useStore } from '../store/useStore';
 import {
   Camera, MapPin, Volume2, Brain, Shield, AlertTriangle,
-  Phone, Eye, EyeOff, CheckCircle,
+  Phone, Eye, EyeOff, CheckCircle, XCircle,
   Navigation, Clock, Wifi, WifiOff, Zap, Video
 } from 'lucide-react';
 
@@ -17,7 +17,7 @@ const DROWSINESS_THRESHOLD_MS = 5000;
 const RESPONSE_TIMEOUT_MS = 30000;
 
 export default function Driver() {
-  const { vehicles, startEyeClosure, updateEyeState, resetEyeClosure, confirmDrowsiness, startAlarm, stopAlarm, escalateToSOS, triggerSOS } = useStore();
+  const { vehicles, startEyeClosure, resetEyeClosure, confirmDrowsiness, startAlarm, stopAlarm, escalateToSOS, triggerSOS } = useStore();
   const faceDetection = useFaceDetection();
   const gps = useGPS();
   const buzzer = useBuzzer();
@@ -32,6 +32,7 @@ export default function Driver() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]);
   const [selectedDriver] = useState<string>('DRV-07');
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const closureTimerRef = useRef<number | null>(null);
   const responseTimerRef = useRef<number | null>(null);
   const eyesClosedAtRef = useRef<number | null>(null);
@@ -65,16 +66,29 @@ export default function Driver() {
     }
   }, [gps.latitude, gps.longitude, gps.speed, gps.heading, gps.isActive, selectedDriver, selectedVehicle.id]);
 
-  const startCamera = useCallback(async () => {
+  const checkCameraPermission = useCallback(async () => {
     try {
-      const testStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-      });
-      testStream.getTracks().forEach(t => t.stop());
+      const result = await navigator.permissions?.query({ name: 'camera' as PermissionName });
+      if (result?.state === 'granted') {
+        setCameraPermission(true);
+        setPermissionStep('location');
+        return true;
+      }
+    } catch {}
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      stream.getTracks().forEach(t => t.stop());
       setCameraPermission(true);
       setPermissionStep('location');
       return true;
-    } catch {
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
+      } else if (err.name === 'NotFoundError') {
+        setCameraError('No camera found. Please connect a front camera.');
+      } else {
+        setCameraError('Camera unavailable: ' + (err.message || 'Unknown error'));
+      }
       return false;
     }
   }, []);
@@ -95,7 +109,9 @@ export default function Driver() {
 
   const startTrip = useCallback(async () => {
     setScreen('monitoring');
+    setCameraError(null);
     gps.startTracking();
+
     gpsSendIntervalRef.current = window.setInterval(() => {
       if (gps.latitude !== 0) {
         useStore.getState().updateDriverGPS(selectedDriver, selectedVehicle.id, {
@@ -106,31 +122,27 @@ export default function Driver() {
         });
       }
     }, 3000);
-    setTimeout(async () => {
-      if (videoRef.current && canvasRef.current) {
-        try {
-          await faceDetection.startDetection(videoRef.current, canvasRef.current);
-          setTimeout(() => {
-            const stream = faceDetection.getStream();
-            if (stream) webrtc.startAsDriver(stream);
-          }, 2000);
-        } catch {
-          // Face detection failed
-        }
+
+    await new Promise(r => setTimeout(r, 300));
+
+    if (videoRef.current && canvasRef.current) {
+      try {
+        await faceDetection.startDetection(videoRef.current, canvasRef.current);
+        setTimeout(() => {
+          const stream = faceDetection.getStream();
+          if (stream) {
+            webrtc.startAsDriver(stream).catch(() => {});
+          }
+        }, 1500);
+      } catch (err: any) {
+        setCameraError(err.message || 'Failed to start camera');
       }
-    }, 500);
+    }
   }, [gps, selectedDriver, selectedVehicle.id, faceDetection, webrtc]);
 
   useEffect(() => {
     if (screen !== 'monitoring') return;
-    if (!faceDetection.faceDetected) {
-      if (eyesClosedAtRef.current) {
-        eyesClosedAtRef.current = null;
-        setClosureElapsed(0);
-        if (closureTimerRef.current) cancelAnimationFrame(closureTimerRef.current);
-        closureTimerRef.current = null;
-        resetEyeClosure();
-      }
+    if (!faceDetection.faceDetected || !faceDetection.isCalibrated) {
       return;
     }
 
@@ -161,12 +173,14 @@ export default function Driver() {
       if (eyesClosedAtRef.current) {
         eyesClosedAtRef.current = null;
         setClosureElapsed(0);
-        if (closureTimerRef.current) cancelAnimationFrame(closureTimerRef.current);
-        closureTimerRef.current = null;
+        if (closureTimerRef.current) {
+          cancelAnimationFrame(closureTimerRef.current);
+          closureTimerRef.current = null;
+        }
         resetEyeClosure();
       }
     }
-  }, [faceDetection.leftEyeOpen, faceDetection.rightEyeOpen, faceDetection.faceDetected, screen, startEyeClosure, resetEyeClosure, confirmDrowsiness, startAlarm, buzzer]);
+  }, [faceDetection.leftEyeOpen, faceDetection.rightEyeOpen, faceDetection.faceDetected, faceDetection.isCalibrated, screen, startEyeClosure, resetEyeClosure, confirmDrowsiness, startAlarm, buzzer]);
 
   useEffect(() => {
     if (screen !== 'drowsiness') {
@@ -206,8 +220,9 @@ export default function Driver() {
       closureTimerRef.current = null;
     }
     stopAlarm();
+    resetEyeClosure();
     setScreen('monitoring');
-  }, [buzzer, stopAlarm]);
+  }, [buzzer, stopAlarm, resetEyeClosure]);
 
   const handleNoResponse = useCallback(() => {
     buzzer.stopBuzzer();
@@ -237,6 +252,7 @@ export default function Driver() {
     buzzer.stopBuzzer();
     gps.stopTracking();
     faceDetection.stopDetection();
+    webrtc.disconnect();
     if (gpsSendIntervalRef.current) clearInterval(gpsSendIntervalRef.current);
     if (closureTimerRef.current) cancelAnimationFrame(closureTimerRef.current);
     if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
@@ -247,7 +263,8 @@ export default function Driver() {
     setLocationPermission(false);
     setSoundPermission(false);
     setPermissionStep('camera');
-  }, [buzzer, gps, faceDetection]);
+    setCameraError(null);
+  }, [buzzer, gps, faceDetection, webrtc]);
 
   useEffect(() => {
     if (faceDetection.isCalibrated || faceDetection.faceDetected) {
@@ -284,9 +301,7 @@ export default function Driver() {
   ]);
 
   useEffect(() => {
-    return () => {
-      endTrip();
-    };
+    return () => { endTrip(); };
   }, []);
 
   const formatTime = (ms: number) => {
@@ -299,6 +314,16 @@ export default function Driver() {
   const closureProgress = Math.min(closureElapsed / DROWSINESS_THRESHOLD_MS, 1);
   const closureSeconds = Math.floor(closureElapsed / 1000);
   const bothEyesClosed = !faceDetection.leftEyeOpen && !faceDetection.rightEyeOpen;
+
+  const getCameraStatusText = () => {
+    if (faceDetection.cameraState === 'active') return { text: 'Camera Connected', color: 'text-green-400', dot: 'bg-green-400' };
+    if (faceDetection.cameraState === 'connecting') return { text: 'Connecting Camera', color: 'text-amber-400', dot: 'bg-amber-400 animate-pulse' };
+    if (faceDetection.cameraState === 'error') return { text: 'Camera Error', color: 'text-red-400', dot: 'bg-red-400' };
+    if (faceDetection.cameraState === 'stopped') return { text: 'Camera Stopped', color: 'text-gray-400', dot: 'bg-gray-400' };
+    return { text: 'Camera Idle', color: 'text-gray-400', dot: 'bg-gray-400' };
+  };
+
+  const cameraStatus = getCameraStatusText();
 
   return (
     <div className="min-h-screen bg-navy-950 text-white flex flex-col" style={{ maxWidth: '430px', margin: '0 auto' }}>
@@ -334,8 +359,25 @@ export default function Driver() {
                   {permissionStep === 'sound' && 'Required for audible drowsiness alerts'}
                 </p>
               </div>
-              {permissionStep === 'camera' && (
-                <button onClick={startCamera} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
+
+              {cameraError && permissionStep === 'camera' && (
+                <div className="w-full bg-red-900/30 border border-red-500/30 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <XCircle className="w-4 h-4 text-red-400" />
+                    <p className="text-xs font-bold text-red-400">Camera Error</p>
+                  </div>
+                  <p className="text-[11px] text-red-300">{cameraError}</p>
+                  <button
+                    onClick={() => { setCameraError(null); checkCameraPermission(); }}
+                    className="mt-3 w-full py-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg text-xs text-red-400 transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {permissionStep === 'camera' && !cameraError && (
+                <button onClick={checkCameraPermission} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
                   <Camera className="w-4 h-4" /> Allow Camera
                 </button>
               )}
@@ -440,6 +482,7 @@ export default function Driver() {
 
             {faceDetection.error && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/90 p-4">
+                <XCircle className="w-8 h-8 text-red-400 mb-2" />
                 <p className="text-xs text-red-400 font-bold text-center">{faceDetection.error}</p>
               </div>
             )}
@@ -453,23 +496,53 @@ export default function Driver() {
               <span className="text-[9px]">{faceDetection.eyesOpen ? 'OPEN' : 'CLOSED'}</span>
             </div>
 
-            {faceDetection.isModelReady && (
-              <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
-                <span className="text-[9px] text-white">LIVE</span>
+            <div className="absolute bottom-2 left-2 flex items-center gap-2">
+              {faceDetection.isModelReady && (
+                <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${cameraStatus.dot}`}></span>
+                  <span className={`text-[9px] ${cameraStatus.color}`}>{cameraStatus.text}</span>
+                </div>
+              )}
+              {faceDetection.isCalibrated && (
+                <div className="flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
+                  <CheckCircle className="w-3 h-3 text-green-400" />
+                  <span className="text-[9px] text-green-400">Calibrated</span>
+                </div>
+              )}
+            </div>
+
+            {!faceDetection.isCalibrated && faceDetection.faceDetected && faceDetection.isModelReady && (
+              <div className="absolute bottom-2 left-2 right-2">
+                <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[9px] text-electric-400 font-bold">CALIBRATING</span>
+                    <span className="text-[9px] text-gray-400">{Math.round((faceDetection.calibrationProgress || 0) * 100)}%</span>
+                  </div>
+                  <div className="w-full h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-electric-500 rounded-full transition-all duration-200"
+                      style={{ width: `${(faceDetection.calibrationProgress || 0) * 100}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
 
           <div className="flex-1 p-4 space-y-3">
-            {bothEyesClosed && faceDetection.faceDetected ? (
+            {bothEyesClosed && faceDetection.faceDetected && faceDetection.isCalibrated ? (
               <div className="bg-orange-600/20 border border-orange-600/30 rounded-xl p-4 text-center">
-                <p className="text-orange-400 text-lg font-black">POSSIBLE DROWSINESS</p>
-                <p className="text-xs text-orange-300 mt-1">Eyes closed — monitoring timer</p>
+                <p className="text-orange-400 text-lg font-black">EYES CLOSED</p>
+                <p className="text-xs text-orange-300 mt-1">Monitoring drowsiness timer</p>
               </div>
-            ) : (
+            ) : faceDetection.isCalibrated && faceDetection.faceDetected ? (
               <div className="bg-green-600/20 border border-green-600/30 rounded-xl p-4 text-center">
                 <p className="text-green-400 text-lg font-black">DRIVER SAFE</p>
+                <p className="text-xs text-green-300/70 mt-1">Eyes open — system monitoring</p>
+              </div>
+            ) : (
+              <div className="bg-gray-600/20 border border-gray-600/30 rounded-xl p-4 text-center">
+                <p className="text-gray-400 text-sm font-bold">Waiting for face detection...</p>
               </div>
             )}
 
@@ -495,7 +568,23 @@ export default function Driver() {
               </div>
             </div>
 
-            {bothEyesClosed && faceDetection.faceDetected && (
+            {faceDetection.isCalibrated && (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-navy-800/50 rounded-xl p-2 text-center">
+                  <p className="text-[9px] text-gray-400">EAR</p>
+                  <p className={`text-sm font-mono font-bold ${
+                    faceDetection.avgEAR >= faceDetection.openThreshold ? 'text-green-400' :
+                    faceDetection.avgEAR <= faceDetection.closedThreshold ? 'text-red-400' : 'text-amber-400'
+                  }`}>{faceDetection.avgEAR.toFixed(3)}</p>
+                </div>
+                <div className="bg-navy-800/50 rounded-xl p-2 text-center">
+                  <p className="text-[9px] text-gray-400">Baseline</p>
+                  <p className="text-sm font-mono font-bold text-gray-300">{faceDetection.baselineEAR.toFixed(3)}</p>
+                </div>
+              </div>
+            )}
+
+            {bothEyesClosed && faceDetection.faceDetected && faceDetection.isCalibrated && (
               <div className="bg-navy-800/50 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] text-gray-400">CONTINUOUS CLOSURE TIMER</p>
@@ -557,12 +646,12 @@ export default function Driver() {
             <p className="text-[10px] text-gray-400 mb-2">ARE YOU OKAY?</p>
             <div className="grid grid-cols-2 gap-2">
               <div className="flex items-center gap-1">
-                <Eye className="w-3 h-3 text-green-400" />
-                <span className="text-[10px] text-green-400">Left: {faceDetection.leftEyeOpen ? 'Open' : 'Closed'}</span>
+                <Eye className="w-3 h-3 text-red-400" />
+                <span className="text-[10px] text-red-400">Left: {faceDetection.leftEyeOpen ? 'Open' : 'Closed'}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Eye className="w-3 h-3 text-green-400" />
-                <span className="text-[10px] text-green-400">Right: {faceDetection.rightEyeOpen ? 'Open' : 'Closed'}</span>
+                <Eye className="w-3 h-3 text-red-400" />
+                <span className="text-[10px] text-red-400">Right: {faceDetection.rightEyeOpen ? 'Open' : 'Closed'}</span>
               </div>
             </div>
           </div>
@@ -608,8 +697,8 @@ export default function Driver() {
               <p className="text-xs font-bold">Driver Eyes Closed for 5 Seconds</p>
             </div>
             <div className="bg-red-900/30 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400">GPS Location</p>
-              <p className="text-xs font-bold">{gps.latitude.toFixed(4)}° N, {gps.longitude.toFixed(4)}° E</p>
+              <p className="text-[10px] text-gray-400">GPS Location (SinoTrack ST-901A)</p>
+              <p className="text-xs font-bold">{gps.latitude.toFixed(6)}° N, {gps.longitude.toFixed(6)}° E</p>
             </div>
             <div className="bg-red-900/30 rounded-xl p-3">
               <p className="text-[10px] text-gray-400">Students On Board</p>
@@ -640,7 +729,7 @@ export default function Driver() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1">
               <Camera className="w-3 h-3 text-gray-400" />
-              <span className={`w-1.5 h-1.5 rounded-full ${cameraPermission ? 'bg-green-400' : 'bg-red-400'}`}></span>
+              <span className={`w-1.5 h-1.5 rounded-full ${faceDetection.cameraState === 'active' ? 'bg-green-400' : faceDetection.cameraState === 'connecting' ? 'bg-amber-400' : 'bg-red-400'}`}></span>
             </div>
             <div className="flex items-center gap-1">
               <MapPin className="w-3 h-3 text-gray-400" />

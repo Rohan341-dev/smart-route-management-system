@@ -165,3 +165,90 @@ export const apiStatus = {
     }
   },
 };
+
+// GPS / SinoTrack Integration
+export interface NormalizedGPS {
+  device_id: string;
+  bus_id: string;
+  bus_db_id: number;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  heading: number;
+  gps_status: 'online' | 'offline' | 'unknown';
+  gsm_signal: string;
+  last_updated: string | null;
+  bus_status: string;
+  current_students: number;
+  capacity: number;
+}
+
+export interface GPSDeviceData {
+  id: number;
+  device_name: string;
+  device_model: string;
+  provider: string;
+  device_identifier: string;
+  imei: string;
+  assigned_bus: number | null;
+  assigned_bus_number: string | null;
+  status: string;
+  last_seen: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GPSHistoryPoint {
+  id: number;
+  bus: number;
+  bus_number: string;
+  latitude: number;
+  longitude: number;
+  speed: number;
+  heading: number;
+  recorded_at: string;
+}
+
+export const gpsAPI = {
+  // Device management
+  listDevices: () => apiRequest<GPSDeviceData[]>('/gps/devices/'),
+  createDevice: (data: Partial<GPSDeviceData>) =>
+    apiRequest<GPSDeviceData>('/gps/devices/', { method: 'POST', body: JSON.stringify(data) }),
+  updateDevice: (id: number, data: Partial<GPSDeviceData>) =>
+    apiRequest<GPSDeviceData>(`/gps/devices/${id}/`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteDevice: (id: number) =>
+    apiRequest<void>(`/gps/devices/${id}/`, { method: 'DELETE' }),
+  assignDevice: (deviceId: number, busId: number | null) =>
+    apiRequest<GPSDeviceData>(`/gps/devices/${deviceId}/assign/`, {
+      method: 'POST',
+      body: JSON.stringify({ bus_id: busId }),
+    }),
+
+  // SinoTrack sync
+  syncDevices: () =>
+    apiRequest<{ message: string; synced: number }>('/gps/sync/devices/', { method: 'POST' }),
+  syncLocations: () =>
+    apiRequest<{ message: string; synced: number }>('/gps/sync/locations/', { method: 'POST' }),
+
+  // Live GPS
+  fleetLocations: () => apiRequest<NormalizedGPS[]>('/gps/fleet/locations/'),
+  busLatest: (busId: number) => apiRequest<NormalizedGPS>(`/gps/bus/${busId}/latest/`),
+  parentLocation: () => apiRequest<NormalizedGPS[]>('/gps/parent/location/'),
+
+  // History
+  history: (busId: number, startDate?: string, endDate?: string) => {
+    const params = new URLSearchParams();
+    if (startDate) params.set('start_date', startDate);
+    if (endDate) params.set('end_date', endDate);
+    const query = params.toString() ? `?${params}` : '';
+    return apiRequest<GPSHistoryPoint[]>(`/gps/history/${busId}/${query}`);
+  },
+
+  // Route deviation
+  deviations: () => apiRequest<any[]>('/gps/deviations/'),
+  acknowledgeDeviation: (id: number) =>
+    apiRequest<any>(`/gps/deviations/${id}/acknowledge/`, { method: 'POST' }),
+
+  // Health check
+  health: () => apiRequest<any>('/gps/health/'),
+};

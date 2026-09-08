@@ -2,6 +2,7 @@ import { useRef, useCallback, useState, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 
 export type EyeState = 'open' | 'closing' | 'closed';
+export type CameraState = 'idle' | 'connecting' | 'active' | 'error' | 'stopped';
 
 export interface FaceDetectionState {
   faceDetected: boolean;
@@ -25,16 +26,21 @@ export interface FaceDetectionState {
   landmarks: any[] | null;
   isModelLoading: boolean;
   isModelReady: boolean;
+  cameraState: CameraState;
   error: string | null;
   fps: number;
   faceConfidence: number;
+  lastBlinkTime: number;
+  blinkCount: number;
 }
 
 const MODEL_URL = '/models';
-const CALIBRATION_FRAMES = 30;
-const SMOOTHING_FRAMES = 5;
-const CLOSED_CONFIRM_FRAMES = 3;
+const CALIBRATION_FRAMES = 40;
+const DETECTION_INTERVAL_MS = 60;
+const CLOSED_CONFIRM_FRAMES = 4;
 const OPEN_CONFIRM_FRAMES = 2;
+const EMA_ALPHA = 0.35;
+const NO_FACE_GRACE_FRAMES = 8;
 
 export function useFaceDetection() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -58,6 +64,12 @@ export function useFaceDetection() {
   const leftOpenCountRef = useRef(0);
   const rightOpenCountRef = useRef(0);
   const consecutiveClosedRef = useRef(0);
+  const noFaceGraceRef = useRef(0);
+  const lastBlinkTimeRef = useRef(0);
+  const blinkCountRef = useRef(0);
+  const prevLeftEARRef = useRef(0);
+  const prevRightEARRef = useRef(0);
+  const modelsLoadedRef = useRef(false);
 
   const [state, setState] = useState<FaceDetectionState>({
     faceDetected: false,
@@ -81,9 +93,12 @@ export function useFaceDetection() {
     landmarks: null,
     isModelLoading: false,
     isModelReady: false,
+    cameraState: 'idle',
     error: null,
     fps: 0,
     faceConfidence: 0,
+    lastBlinkTime: 0,
+    blinkCount: 0,
   });
 
   const stateRef = useRef(state);
@@ -107,7 +122,7 @@ export function useFaceDetection() {
       const detections = await faceapi
         .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({
           inputSize: 320,
-          scoreThreshold: 0.3,
+          scoreThreshold: 0.25,
         }))
         .withFaceLandmarks();
 
@@ -117,26 +132,30 @@ export function useFaceDetection() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (!detections) {
-        consecutiveClosedRef.current = 0;
-        setState(prev => ({
-          ...prev,
-          faceDetected: false,
-          eyesOpen: true,
-          leftEyeOpen: true,
-          rightEyeOpen: true,
-          leftEyeState: 'open',
-          rightEyeState: 'open',
-          eyeState: 'open',
-          leftEAR: 0,
-          rightEAR: 0,
-          avgEAR: 0,
-          drowsinessScore: 0,
-          landmarks: null,
-          faceConfidence: 0,
-        }));
+        noFaceGraceRef.current++;
+        if (noFaceGraceRef.current >= NO_FACE_GRACE_FRAMES) {
+          consecutiveClosedRef.current = 0;
+          setState(prev => ({
+            ...prev,
+            faceDetected: false,
+            eyesOpen: true,
+            leftEyeOpen: true,
+            rightEyeOpen: true,
+            leftEyeState: 'open',
+            rightEyeState: 'open',
+            eyeState: 'open',
+            leftEAR: 0,
+            rightEAR: 0,
+            avgEAR: 0,
+            drowsinessScore: 0,
+            landmarks: null,
+            faceConfidence: 0,
+          }));
+        }
         return;
       }
 
+      noFaceGraceRef.current = 0;
       const confidence = Math.round((detections.detection?.score || 0) * 100);
       const landmarks = detections.landmarks;
       const jaw = landmarks.getJawOutline();
@@ -149,23 +168,26 @@ export function useFaceDetection() {
       const rawRightEAR = calculateEAR(rightEye);
       const rawAvgEAR = (rawLeftEAR + rawRightEAR) / 2;
 
-      leftEARHistoryRef.current.push(rawLeftEAR);
-      rightEARHistoryRef.current.push(rawRightEAR);
-      if (leftEARHistoryRef.current.length > SMOOTHING_FRAMES) leftEARHistoryRef.current.shift();
-      if (rightEARHistoryRef.current.length > SMOOTHING_FRAMES) rightEARHistoryRef.current.shift();
-
-      const smoothLeft = average(leftEARHistoryRef.current);
-      const smoothRight = average(rightEARHistoryRef.current);
+      const smoothLeft = emaSmooth(leftEARHistoryRef.current, rawLeftEAR, EMA_ALPHA);
+      const smoothRight = emaSmooth(rightEARHistoryRef.current, rawRightEAR, EMA_ALPHA);
       const smoothAvg = (smoothLeft + smoothRight) / 2;
+
+      leftEARHistoryRef.current.push(smoothLeft);
+      rightEARHistoryRef.current.push(smoothRight);
+      if (leftEARHistoryRef.current.length > 8) leftEARHistoryRef.current.shift();
+      if (rightEARHistoryRef.current.length > 8) rightEARHistoryRef.current.shift();
 
       if (!stateRef.current.isCalibrated) {
         calibrationSamplesRef.current.push(smoothAvg);
         const progress = Math.min(calibrationSamplesRef.current.length / CALIBRATION_FRAMES, 1);
 
         if (calibrationSamplesRef.current.length >= CALIBRATION_FRAMES) {
-          const baseline = average(calibrationSamplesRef.current);
-          const openThresh = baseline * 0.78;
-          const closedThresh = baseline * 0.55;
+          const sorted = [...calibrationSamplesRef.current].sort((a, b) => a - b);
+          const trimCount = Math.floor(sorted.length * 0.15);
+          const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
+          const baseline = average(trimmed);
+          const openThresh = baseline * 0.76;
+          const closedThresh = baseline * 0.52;
           baselineEARRef.current = baseline;
           openThresholdRef.current = openThresh;
           closedThresholdRef.current = closedThresh;
@@ -235,7 +257,7 @@ export function useFaceDetection() {
 
       const getEyeState = (ear: number, isOpen: boolean): EyeState => {
         if (isOpen) return 'open';
-        if (ear < closedThresh) return 'closed';
+        if (ear < closedThresh * 0.8) return 'closed';
         return 'closing';
       };
 
@@ -248,12 +270,19 @@ export function useFaceDetection() {
       if (bothClosed) {
         consecutiveClosedRef.current++;
       } else {
+        if (consecutiveClosedRef.current > 0 && consecutiveClosedRef.current < CLOSED_CONFIRM_FRAMES * 2) {
+          const blinkTime = Date.now();
+          if (blinkTime - lastBlinkTimeRef.current > 200) {
+            blinkCountRef.current++;
+            lastBlinkTimeRef.current = blinkTime;
+          }
+        }
         consecutiveClosedRef.current = 0;
       }
 
       let drowsinessScore = 0;
       if (bothClosed) {
-        drowsinessScore = Math.min(consecutiveClosedRef.current / 20, 1);
+        drowsinessScore = Math.min(consecutiveClosedRef.current / 30, 1);
       }
 
       const eyeColor = bothOpen ? '#10b981' : eyeState === 'closing' ? '#f59e0b' : '#ef4444';
@@ -281,6 +310,9 @@ export function useFaceDetection() {
       const pitch = (noseTip.y - canvas.height / 2) / canvas.height * 60;
       const roll = Math.atan2(rightEyeCenter.y - leftEyeCenter.y, rightEyeCenter.x - leftEyeCenter.x) * (180 / Math.PI);
 
+      prevLeftEARRef.current = smoothLeft;
+      prevRightEARRef.current = smoothRight;
+
       setState(prev => ({
         ...prev,
         faceDetected: true,
@@ -299,9 +331,11 @@ export function useFaceDetection() {
         landmarks: allPoints,
         faceConfidence: confidence,
         fps: fpsRef.current,
+        lastBlinkTime: lastBlinkTimeRef.current,
+        blinkCount: blinkCountRef.current,
       }));
     } catch {
-      // Ignore detection errors
+      // Ignore detection errors silently
     }
   }, []);
 
@@ -309,85 +343,86 @@ export function useFaceDetection() {
     videoRef.current = video;
     canvasRef.current = canvas;
 
-    setState(prev => ({ ...prev, isModelLoading: true, error: null }));
+    setState(prev => ({ ...prev, isModelLoading: true, error: null, cameraState: 'connecting' }));
 
     try {
-      console.log('[FaceDetect] Loading models from:', MODEL_URL);
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      console.log('[FaceDetect] TinyFaceDetector loaded:', faceapi.nets.tinyFaceDetector.isLoaded);
-      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      console.log('[FaceDetect] FaceLandmark68 loaded:', faceapi.nets.faceLandmark68Net.isLoaded);
+      if (!modelsLoadedRef.current) {
+        console.log('[FaceDetect] Loading models...');
+        await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+        await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+        modelsLoadedRef.current = true;
+        console.log('[FaceDetect] Models loaded');
+      }
 
-      console.log('[FaceDetect] Requesting camera...');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
-      });
-      console.log('[FaceDetect] Camera stream obtained:', stream.getTracks().length, 'tracks');
+      const existingStream = video.srcObject as MediaStream | null;
+      let stream: MediaStream;
+
+      if (existingStream && existingStream.active) {
+        stream = existingStream;
+        console.log('[FaceDetect] Using existing camera stream');
+      } else {
+        console.log('[FaceDetect] Requesting camera...');
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+        });
+        console.log('[FaceDetect] Camera obtained');
+      }
+
       streamRef.current = stream;
-
       video.srcObject = stream;
-      console.log('[FaceDetect] Stream attached to video element');
 
       await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Video load timeout - camera may be in use by another app'));
-        }, 10000);
+        const timeout = setTimeout(() => reject(new Error('Video load timeout')), 10000);
 
-        video.onloadedmetadata = () => {
-          console.log('[FaceDetect] Metadata loaded:', video.videoWidth, 'x', video.videoHeight);
+        const onReady = () => {
+          clearTimeout(timeout);
           video.play()
-            .then(() => {
-              console.log('[FaceDetect] Video playing');
-              clearTimeout(timeout);
-              resolve();
-            })
-            .catch((e) => {
-              console.error('[FaceDetect] Video play error:', e);
-              clearTimeout(timeout);
-              reject(e);
-            });
+            .then(() => { console.log('[FaceDetect] Video playing'); resolve(); })
+            .catch((e) => { console.error('[FaceDetect] Play error:', e); reject(e); });
         };
 
         if (video.readyState >= 1) {
-          console.log('[FaceDetect] Metadata already loaded, playing...');
-          video.play()
-            .then(() => {
-              console.log('[FaceDetect] Video playing');
-              clearTimeout(timeout);
-              resolve();
-            })
-            .catch((e) => {
-              console.error('[FaceDetect] Video play error:', e);
-              clearTimeout(timeout);
-              reject(e);
-            });
+          onReady();
+        } else {
+          video.onloadedmetadata = onReady;
         }
       });
 
-      console.log('[FaceDetect] Video dimensions:', video.videoWidth, 'x', video.videoHeight);
+      console.log('[FaceDetect] Video:', video.videoWidth, 'x', video.videoHeight);
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
-      console.log('[FaceDetect] Canvas sized:', canvas.width, 'x', canvas.height);
 
       console.log('[FaceDetect] Starting detection loop...');
-      intervalRef.current = window.setInterval(detectFace, 100);
+      intervalRef.current = window.setInterval(detectFace, DETECTION_INTERVAL_MS);
 
       setState(prev => ({
         ...prev,
         isModelLoading: false,
         isModelReady: true,
+        cameraState: 'active',
       }));
       console.log('[FaceDetect] Ready!');
     } catch (err: any) {
       console.error('[FaceDetect] Error:', err);
+      let errorMsg = err.message || 'Failed to start face detection';
+      if (err.name === 'NotAllowedError') {
+        errorMsg = 'Camera permission denied. Please allow camera access.';
+      } else if (err.name === 'NotFoundError') {
+        errorMsg = 'No camera found. Please connect a camera.';
+      } else if (err.name === 'NotReadableError') {
+        errorMsg = 'Camera is in use by another application.';
+      } else if (err.message?.includes('timeout')) {
+        errorMsg = 'Camera connection timed out.';
+      }
       setState(prev => ({
         ...prev,
         isModelLoading: false,
-        error: err.message || 'Failed to start face detection',
+        error: errorMsg,
+        cameraState: 'error',
       }));
     }
   }, [detectFace]);
@@ -406,11 +441,13 @@ export function useFaceDetection() {
     leftOpenCountRef.current = 0;
     rightOpenCountRef.current = 0;
     consecutiveClosedRef.current = 0;
+    noFaceGraceRef.current = 0;
     leftEARHistoryRef.current = [];
     rightEARHistoryRef.current = [];
     calibrationSamplesRef.current = [];
     frameCountRef.current = 0;
     fpsRef.current = 0;
+    setState(prev => ({ ...prev, cameraState: 'stopped' }));
   }, []);
 
   const recalibrate = useCallback(() => {
@@ -436,14 +473,10 @@ export function useFaceDetection() {
   }, []);
 
   useEffect(() => {
-    return () => {
-      stopDetection();
-    };
+    return () => { stopDetection(); };
   }, [stopDetection]);
 
-  const getStream = useCallback(() => {
-    return streamRef.current;
-  }, []);
+  const getStream = useCallback(() => streamRef.current, []);
 
   return { ...state, startDetection, stopDetection, getStream, recalibrate, videoRef, canvasRef };
 }
@@ -462,8 +495,14 @@ function calculateEAR(eyePoints: any[]): number {
   const vertical2 = Math.hypot(p2.x - p4.x, p2.y - p4.y);
   const horizontal = Math.hypot(p3.x - p0.x, p3.y - p0.y);
 
-  if (horizontal === 0) return 0.3;
+  if (horizontal < 1) return 0.3;
   return (vertical1 + vertical2) / (2.0 * horizontal);
+}
+
+function emaSmooth(history: number[], newValue: number, alpha: number): number {
+  if (history.length === 0) return newValue;
+  const last = history[history.length - 1];
+  return alpha * newValue + (1 - alpha) * last;
 }
 
 function average(arr: number[]): number {

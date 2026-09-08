@@ -32,6 +32,9 @@ export type DriverMonitoringStateType =
   | 'sos_active'
   | 'resolved';
 
+export type GPSDataSource = 'sinotrack' | 'driver_phone' | 'demo' | 'unknown';
+export type GPSStatus = 'online' | 'offline' | 'unknown';
+
 export interface Vehicle {
   id: string;
   registrationNumber: string;
@@ -56,6 +59,9 @@ export interface Vehicle {
   lastUpdate?: string;
   routeName?: string;
   plateNumber?: string;
+  gpsSource?: GPSDataSource;
+  gpsStatus?: GPSStatus;
+  lastGpsUpdate?: string;
 }
 
 export interface Driver {
@@ -275,6 +281,7 @@ export interface DriverMonitoringState {
   drowsinessScore: number;
   fps: number;
   faceConfidence: number;
+  cameraState?: 'idle' | 'connecting' | 'active' | 'error' | 'stopped';
 }
 
 export interface AttendanceRecord {
