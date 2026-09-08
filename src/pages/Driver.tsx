@@ -250,6 +250,40 @@ export default function Driver() {
   }, [buzzer, gps, faceDetection]);
 
   useEffect(() => {
+    if (faceDetection.isCalibrated || faceDetection.faceDetected) {
+      useStore.getState().updateMonitoringState({
+        leftEyeOpen: faceDetection.leftEyeOpen,
+        rightEyeOpen: faceDetection.rightEyeOpen,
+        eyesOpen: faceDetection.eyesOpen,
+        faceDetected: faceDetection.faceDetected,
+        leftEyeState: faceDetection.leftEyeState,
+        rightEyeState: faceDetection.rightEyeState,
+        eyeState: faceDetection.eyeState,
+        leftEAR: faceDetection.leftEAR,
+        rightEAR: faceDetection.rightEAR,
+        avgEAR: faceDetection.avgEAR,
+        baselineEAR: faceDetection.baselineEAR,
+        openThreshold: faceDetection.openThreshold,
+        closedThreshold: faceDetection.closedThreshold,
+        isCalibrated: faceDetection.isCalibrated,
+        calibrationProgress: faceDetection.calibrationProgress,
+        consecutiveClosedFrames: faceDetection.consecutiveClosedFrames,
+        drowsinessScore: faceDetection.drowsinessScore,
+        fps: faceDetection.fps,
+        faceConfidence: faceDetection.faceConfidence,
+      });
+    }
+  }, [
+    faceDetection.leftEyeOpen, faceDetection.rightEyeOpen, faceDetection.eyesOpen,
+    faceDetection.faceDetected, faceDetection.leftEyeState, faceDetection.rightEyeState,
+    faceDetection.eyeState, faceDetection.leftEAR, faceDetection.rightEAR,
+    faceDetection.avgEAR, faceDetection.baselineEAR, faceDetection.openThreshold,
+    faceDetection.closedThreshold, faceDetection.isCalibrated, faceDetection.calibrationProgress,
+    faceDetection.consecutiveClosedFrames, faceDetection.drowsinessScore,
+    faceDetection.fps, faceDetection.faceConfidence,
+  ]);
+
+  useEffect(() => {
     return () => {
       endTrip();
     };

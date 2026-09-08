@@ -62,6 +62,7 @@ interface AppState {
 
   // Driver monitoring state machine actions
   setMonitoringState: (state: DriverMonitoringStateType) => void;
+  updateMonitoringState: (partial: Partial<DriverMonitoringState>) => void;
   startEyeClosure: () => void;
   updateEyeState: (leftOpen: boolean, rightOpen: boolean, faceDetected: boolean) => void;
   resetEyeClosure: () => void;
@@ -183,6 +184,21 @@ export const useStore = create<AppState>((set, get) => ({
     eyesClosedAt: null,
     closureDuration: 0,
     responseDeadline: null,
+    leftEyeState: 'open',
+    rightEyeState: 'open',
+    eyeState: 'open',
+    leftEAR: 0,
+    rightEAR: 0,
+    avgEAR: 0,
+    baselineEAR: 0,
+    openThreshold: 0.22,
+    closedThreshold: 0.16,
+    isCalibrated: false,
+    calibrationProgress: 0,
+    consecutiveClosedFrames: 0,
+    drowsinessScore: 0,
+    fps: 0,
+    faceConfidence: 0,
   },
 
   // Attendance initial state
@@ -203,6 +219,10 @@ export const useStore = create<AppState>((set, get) => ({
   // Driver monitoring state machine actions
   setMonitoringState: (newState) => set((s) => ({
     monitoringState: { ...s.monitoringState, monitoringState: newState },
+  })),
+
+  updateMonitoringState: (partial) => set((s) => ({
+    monitoringState: { ...s.monitoringState, ...partial },
   })),
 
   startEyeClosure: () => {

@@ -226,6 +226,8 @@ export interface DashboardStats {
   routeDeviations: number;
 }
 
+export type EyeState = 'open' | 'closing' | 'closed';
+
 export interface DriverMonitoringState {
   isMonitoring: boolean;
   faceDetected: boolean;
@@ -244,6 +246,21 @@ export interface DriverMonitoringState {
   eyesClosedAt: number | null;
   closureDuration: number;
   responseDeadline: number | null;
+  leftEyeState: EyeState;
+  rightEyeState: EyeState;
+  eyeState: EyeState;
+  leftEAR: number;
+  rightEAR: number;
+  avgEAR: number;
+  baselineEAR: number;
+  openThreshold: number;
+  closedThreshold: number;
+  isCalibrated: boolean;
+  calibrationProgress: number;
+  consecutiveClosedFrames: number;
+  drowsinessScore: number;
+  fps: number;
+  faceConfidence: number;
 }
 
 export interface AttendanceRecord {
