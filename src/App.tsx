@@ -20,6 +20,9 @@ import Trips from './pages/Trips';
 import Driver from './pages/Driver';
 import Attendance from './pages/Attendance';
 import DemoPanel from './components/DemoPanel';
+import UserManagement from './pages/admin/UserManagement';
+import BusManagement from './pages/admin/BusManagement';
+import AssignmentScreen from './pages/admin/AssignmentScreen';
 import ParentDashboard from './pages/parent/ParentDashboard';
 import TrackBus from './pages/parent/TrackBus';
 import MyChildren from './pages/parent/MyChildren';
@@ -63,6 +66,9 @@ function AdminApp() {
       case 'notifications': return <Notifications />;
       case 'reports': return <Reports />;
       case 'settings': return <Settings />;
+      case 'user-management': return <UserManagement />;
+      case 'bus-management': return <BusManagement />;
+      case 'bus-assignment': return <AssignmentScreen />;
       default: return <Dashboard />;
     }
   };

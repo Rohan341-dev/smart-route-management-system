@@ -1,5 +1,5 @@
 import { useStore } from '../store/useStore';
-import { LayoutDashboard, MapPin, Truck, Users, GraduationCap, Route, Navigation, Eye, Bell, AlertTriangle, Shield, BarChart3, Settings, ChevronLeft, ChevronRight, Bus, Radio, Map, QrCode, Home, User } from 'lucide-react';
+import { LayoutDashboard, MapPin, Truck, Users, GraduationCap, Route, Navigation, Eye, Bell, AlertTriangle, Shield, BarChart3, Settings, ChevronLeft, ChevronRight, Bus, Radio, Map, QrCode, Home, User, ClipboardList } from 'lucide-react';
 import type { UserRole } from '../data/types';
 
 const adminNavItems = [
@@ -11,6 +11,9 @@ const adminNavItems = [
   { id: 'students', label: 'Students', icon: GraduationCap },
   { id: 'trips', label: 'Trips', icon: Bus },
   { id: 'attendance', label: 'QR Attendance', icon: QrCode },
+  { id: 'user-management', label: 'User Management', icon: Users },
+  { id: 'bus-management', label: 'Bus Management', icon: Bus },
+  { id: 'bus-assignment', label: 'Bus Assignment', icon: ClipboardList },
   { id: 'driver-monitoring', label: 'AI Monitoring', icon: Eye },
   { id: 'alerts', label: 'Alerts', icon: Bell },
   { id: 'sos', label: 'SOS Emergency', icon: AlertTriangle },
@@ -38,9 +41,14 @@ const driverNavItems = [
 
 function getNavItems(role: UserRole) {
   switch (role) {
-    case 'admin': return adminNavItems;
+    case 'admin':
+    case 'super_admin':
+    case 'school_staff':
+    case 'teacher':
+      return adminNavItems;
     case 'parent': return parentNavItems;
     case 'driver': return driverNavItems;
+    default: return adminNavItems;
   }
 }
 

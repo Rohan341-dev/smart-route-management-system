@@ -42,14 +42,18 @@ class ScanStudentQRView(APIView):
         qr_data = serializer.validated_data['qr_data']
         action = serializer.validated_data['action']
 
-        # Parse QR payload — extract studentId from JSON or raw string
+        # Parse QR payload — extract studentId from format SMARTBUS:STUDENT:STU-001
         student_id = None
-        try:
-            payload = json.loads(qr_data)
-            if isinstance(payload, dict) and payload.get('type') == 'SMARTBUS_STUDENT':
-                student_id = payload.get('studentId')
-        except (json.JSONDecodeError, TypeError, AttributeError):
-            student_id = qr_data
+        qr_str = qr_data.strip()
+        if qr_str.startswith('SMARTBUS:STUDENT:'):
+            student_id = qr_str.replace('SMARTBUS:STUDENT:', '').strip()
+        else:
+            try:
+                payload = json.loads(qr_str)
+                if isinstance(payload, dict) and payload.get('type') == 'SMARTBUS_STUDENT':
+                    student_id = payload.get('studentId')
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                student_id = qr_str
 
         if not student_id:
             return Response(

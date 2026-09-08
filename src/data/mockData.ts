@@ -1,8 +1,7 @@
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, AttendanceRecord, AttendanceEvent, SmartBusQRPayload } from './types';
+import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, AttendanceRecord, AttendanceEvent, User } from './types';
 
-function makeQR(studentId: string, qrId: string): string {
-  const payload: SmartBusQRPayload = { type: 'SMARTBUS_STUDENT', version: 1, studentId, qrId };
-  return JSON.stringify(payload);
+function makeQR(studentId: string, _qrId: string): string {
+  return `SMARTBUS:STUDENT:${studentId}`;
 }
 
 export const vehicles: Vehicle[] = [
@@ -144,4 +143,20 @@ export const attendanceEvents: AttendanceEvent[] = [
   { id: 'AEVT-002', type: 'boarded', studentId: 'STU-002', studentName: 'Diya Thapa', vehicleId: 'BUS-101', message: 'Diya Thapa boarded BUS-101 at 08:07 AM', time: '08:07 AM', severity: 'success' },
   { id: 'AEVT-003', type: 'boarded', studentId: 'STU-003', studentName: 'Rohan Yadav', vehicleId: 'BUS-101', message: 'Rohan Yadav boarded BUS-101 at 08:08 AM', time: '08:08 AM', severity: 'success' },
   { id: 'AEVT-004', type: 'dropped', studentId: 'STU-004', studentName: 'Ananya KC', vehicleId: 'BUS-102', message: 'Ananya KC dropped at Patan at 08:32 AM', time: '08:32 AM', severity: 'success' },
+];
+
+export const users: User[] = [
+  { id: 'USR-001', name: 'School Admin', email: 'admin@smartbus.demo', role: 'admin', phone: '+977-9841000001', status: 'active' },
+  { id: 'USR-002', name: 'Ram Sharma', email: 'ram.sharma@smartbus.demo', role: 'driver', phone: '+977-9841234567', status: 'active', driverId: 'DRV-01', assignedVehicleId: 'BUS-101', assignedRouteId: 'RT-01' },
+  { id: 'USR-003', name: 'Shyam Thapa', email: 'shyam.thapa@smartbus.demo', role: 'driver', phone: '+977-9841234569', status: 'active', driverId: 'DRV-02', assignedVehicleId: 'BUS-102', assignedRouteId: 'RT-02' },
+  { id: 'USR-004', name: 'Hari Prasad', email: 'hari.prasad@smartbus.demo', role: 'driver', phone: '+977-9841234571', status: 'active', driverId: 'DRV-03', assignedVehicleId: 'BUS-103', assignedRouteId: 'RT-03' },
+  { id: 'USR-005', name: 'Krishna Das', email: 'krishna.das@smartbus.demo', role: 'driver', phone: '+977-9841234573', status: 'active', driverId: 'DRV-04', assignedVehicleId: 'BUS-104', assignedRouteId: 'RT-04' },
+  { id: 'USR-006', name: 'Gopal Rai', email: 'gopal.rai@smartbus.demo', role: 'driver', phone: '+977-9841234575', status: 'inactive', driverId: 'DRV-05', assignedVehicleId: 'BUS-105' },
+  { id: 'USR-007', name: 'Bikash Gurung', email: 'bikash.gurung@smartbus.demo', role: 'driver', phone: '+977-9841234577', status: 'inactive', driverId: 'DRV-06', assignedVehicleId: 'BUS-106' },
+  { id: 'USR-008', name: 'Suresh Magar', email: 'driver@smartbus.demo', role: 'driver', phone: '+977-9841234579', status: 'active', driverId: 'DRV-07', assignedVehicleId: 'BUS-107', assignedRouteId: 'RT-07' },
+  { id: 'USR-009', name: 'Deepak Limbu', email: 'deepak.limbu@smartbus.demo', role: 'driver', phone: '+977-9841234581', status: 'active', driverId: 'DRV-08', assignedVehicleId: 'BUS-108', assignedRouteId: 'RT-08' },
+  { id: 'USR-010', name: 'Sita Sharma', email: 'sita.sharma@smartbus.demo', role: 'teacher', phone: '+977-9841111200', status: 'active', assignedVehicleId: 'BUS-101', assignedRouteId: 'RT-01' },
+  { id: 'USR-011', name: 'Anita Karki', email: 'anita.karki@smartbus.demo', role: 'school_staff', phone: '+977-9841111201', status: 'active', assignedVehicleId: 'BUS-107', assignedRouteId: 'RT-07' },
+  { id: 'USR-012', name: 'Ram Sharma (Parent)', email: 'parent@smartbus.demo', role: 'parent', phone: '+977-9841111111', status: 'active', studentIds: ['STU-001', 'STU-002', 'STU-003'] },
+  { id: 'USR-013', name: 'Shyam Thapa (Parent)', email: 'shyam.parent@smartbus.demo', role: 'parent', phone: '+977-9841111112', status: 'active', studentIds: ['STU-004', 'STU-005'] },
 ];

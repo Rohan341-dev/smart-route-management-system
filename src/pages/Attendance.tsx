@@ -160,32 +160,18 @@ export default function Attendance() {
 
       {/* Scan Result Toast */}
       {lastScanResult && (
-        <div className={`glass-card p-4 border-l-4 ${
+        <div className={`glass-card p-3 border-l-4 ${
           lastScanResult.success ? 'border-l-emerald-500 bg-emerald-500/5' : 'border-l-red-500 bg-red-500/5'
         } ${scanSuccess ? 'scan-success-pulse' : ''}`}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {lastScanResult.success ? (
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="w-6 h-6 text-emerald-400" />
-              </div>
+              <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
             ) : (
-              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                <XCircle className="w-6 h-6 text-red-400" />
-              </div>
+              <XCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
             )}
-            <div className="flex-1">
-              <p className={`text-sm font-bold ${lastScanResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
-                {lastScanResult.success ? 'Student Verified' : 'Scan Failed'}
-              </p>
-              <p className="text-xs dark:text-gray-300 text-surface-600 mt-0.5">{lastScanResult.message}</p>
-              {lastScanResult.student && (
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] dark:text-gray-400 text-surface-500">{lastScanResult.student.studentId}</span>
-                  <span className="text-[10px] dark:text-gray-400 text-surface-500">{lastScanResult.student.assignedVehicleId}</span>
-                  <span className="text-[10px] dark:text-gray-400 text-surface-500">{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
-                </div>
-              )}
-            </div>
+            <p className={`text-xs font-bold ${lastScanResult.success ? 'text-emerald-400' : 'text-red-400'}`}>
+              {lastScanResult.message}
+            </p>
           </div>
         </div>
       )}

@@ -8,10 +8,13 @@ export default function UserMenu() {
 
   if (!currentUser) return null;
 
-  const roleColors = {
+  const roleColors: Record<string, string> = {
+    super_admin: 'from-red-500 to-red-700',
     admin: 'from-electric-500 to-purple-600',
-    parent: 'from-emerald-500 to-emerald-700',
+    school_staff: 'from-blue-500 to-blue-700',
+    teacher: 'from-emerald-500 to-emerald-700',
     driver: 'from-amber-500 to-orange-600',
+    parent: 'from-purple-500 to-purple-700',
   };
 
   return (

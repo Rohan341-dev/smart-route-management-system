@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, SmartBusQRPayload, TripStatus, StopStatus } from '../data/types';
-import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
+import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, UserStatus, TripStatus, StopStatus } from '../data/types';
+import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents, users as initialUsers } from '../data/mockData';
 import { attendanceAPI } from '../services/api';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -23,6 +23,7 @@ interface AppState {
   login: (email: string, password: string, role: UserRole) => boolean;
   logout: () => void;
 
+  users: User[];
   vehicles: Vehicle[];
   drivers: Driver[];
   students: Student[];
@@ -90,6 +91,13 @@ interface AppState {
   // Student management actions
   addStudent: (data: Omit<Student, 'id' | 'studentId' | 'qrCode' | 'qrId' | 'qrEnabled' | 'status' | 'attendanceStatus' | 'attendanceHistory' | 'createdAt'>) => Student;
 
+  // User management actions
+  addUser: (user: User) => void;
+  updateUser: (userId: string, updates: Partial<User>) => void;
+
+  // Vehicle management actions
+  updateVehicle: (vehicleId: string, updates: Partial<Vehicle>) => void;
+
   // Demo simulation actions
   simulateBusMovement: () => void;
   simulateDrowsiness: () => void;
@@ -139,15 +147,23 @@ export const useStore = create<AppState>((set, get) => ({
     const demoAccounts: Record<string, { password: string; user: User }> = {
       'admin@smartbus.demo': {
         password: 'admin123',
-        user: { id: 'ADM-01', name: 'School Admin', email: 'admin@smartbus.demo', role: 'admin' },
+        user: { id: 'USR-001', name: 'School Admin', email: 'admin@smartbus.demo', role: 'admin', status: 'active' },
       },
       'parent@smartbus.demo': {
         password: 'parent123',
-        user: { id: 'PAR-01', name: 'Ram Sharma', email: 'parent@smartbus.demo', role: 'parent', studentIds: ['STU-001', 'STU-002', 'STU-003'] },
+        user: { id: 'USR-012', name: 'Ram Sharma (Parent)', email: 'parent@smartbus.demo', role: 'parent', status: 'active', studentIds: ['STU-001', 'STU-002', 'STU-003'] },
       },
       'driver@smartbus.demo': {
         password: 'driver123',
-        user: { id: 'DRV-07', name: 'Suresh Magar', email: 'driver@smartbus.demo', role: 'driver', driverId: 'DRV-07', assignedVehicleId: 'BUS-107' },
+        user: { id: 'USR-008', name: 'Suresh Magar', email: 'driver@smartbus.demo', role: 'driver', status: 'active', driverId: 'DRV-07', assignedVehicleId: 'BUS-107' },
+      },
+      'staff@smartbus.demo': {
+        password: 'staff123',
+        user: { id: 'USR-011', name: 'Anita Karki', email: 'staff@smartbus.demo', role: 'school_staff', status: 'active', assignedVehicleId: 'BUS-107' },
+      },
+      'teacher@smartbus.demo': {
+        password: 'teacher123',
+        user: { id: 'USR-010', name: 'Sita Sharma', email: 'teacher@smartbus.demo', role: 'teacher', status: 'active', assignedVehicleId: 'BUS-101' },
       },
     };
 
@@ -170,6 +186,7 @@ export const useStore = create<AppState>((set, get) => ({
   drivers: initialDrivers,
   students: initialStudents,
   routes: initialRoutes,
+  users: initialUsers,
   driverAlerts: initialAlerts,
   sosAlerts: initialSOS,
   notifications: initialNotifications,
@@ -544,63 +561,47 @@ export const useStore = create<AppState>((set, get) => ({
 
     console.log('[ScanQR] Raw QR:', qrCode);
 
+    // Parse format: SMARTBUS:STUDENT:STU-001
     let studentId = '';
-    let qrId = '';
-    try {
-      const payload: SmartBusQRPayload = JSON.parse(qrCode);
-      console.log('[ScanQR] Parsed payload:', payload);
-      if (payload.type === 'SMARTBUS_STUDENT' && payload.studentId) {
-        studentId = payload.studentId;
-        qrId = payload.qrId || '';
-      }
-    } catch {
-      console.log('[ScanQR] Not JSON, using raw as studentId');
-      studentId = qrCode;
+    if (qrCode.startsWith('SMARTBUS:STUDENT:')) {
+      studentId = qrCode.replace('SMARTBUS:STUDENT:', '').trim();
+    } else {
+      studentId = qrCode.trim();
     }
 
-    console.log('[ScanQR] Looking for studentId:', studentId, 'qrId:', qrId);
+    console.log('[ScanQR] Extracted studentId:', studentId);
 
-    const student = state.students.find(s =>
-      s.studentId === studentId ||
-      s.id === studentId ||
-      s.qrId === qrId ||
-      s.qrCode === qrCode
-    );
+    const student = state.students.find(s => s.studentId === studentId);
 
     if (!student) {
-      console.log('[ScanQR] Student NOT FOUND');
+      console.log('[ScanQR] Student NOT FOUND for studentId:', studentId);
       set({
-        lastScanResult: { success: false, message: `Student not found for QR: ${studentId || qrCode}` },
+        lastScanResult: { success: false, message: `Invalid QR — student ${studentId} not found` },
       });
       return;
     }
 
-    console.log('[ScanQR] Student found:', student.fullName, student.studentId, 'status:', student.attendanceStatus);
+    console.log('[ScanQR] Student found:', student.fullName, '| status:', student.attendanceStatus);
 
     const isDropStage = state.selectedTripStage.includes('drop');
     const isAlreadyBoarded = student.attendanceStatus === 'on_bus' || student.attendanceStatus === 'picked_up';
     const isAlreadyDropped = student.attendanceStatus === 'dropped';
 
-    console.log('[ScanQR] isDropStage:', isDropStage, 'isAlreadyBoarded:', isAlreadyBoarded, 'isAlreadyDropped:', isAlreadyDropped);
-
     if (!isDropStage && isAlreadyBoarded) {
-      console.log('[ScanQR] REJECTED: already boarded');
       set({
-        lastScanResult: { success: false, message: `${student.fullName} has already boarded` },
+        lastScanResult: { success: false, message: `${student.fullName} already boarded` },
       });
       return;
     }
 
     if (isDropStage && isAlreadyDropped) {
-      console.log('[ScanQR] REJECTED: already dropped');
       set({
-        lastScanResult: { success: false, message: `${student.fullName} has already been dropped` },
+        lastScanResult: { success: false, message: `${student.fullName} already dropped` },
       });
       return;
     }
 
     if (isDropStage && !isAlreadyBoarded) {
-      console.log('[ScanQR] REJECTED: not boarded yet');
       set({
         lastScanResult: { success: false, message: `${student.fullName} has not boarded yet` },
       });
@@ -620,9 +621,7 @@ export const useStore = create<AppState>((set, get) => ({
       scannedBy: 'qr_camera',
     };
 
-    console.log('[ScanQR] Creating attendance record:', record);
-
-    // Attempt to sync with Django backend
+    // Attempt to sync with Django backend (fire-and-forget)
     attendanceAPI.scan(qrCode, state.selectedAttendanceVehicle, state.currentUser?.driverId || 'DRV-07', isDropStage ? 'drop' : 'pick').then(result => {
       if (result.error) {
         console.warn('[ScanQR] Backend sync failed:', result.error);
@@ -794,6 +793,48 @@ export const useStore = create<AppState>((set, get) => ({
     }));
 
     return newStudent;
+  },
+
+  addUser: (user) => {
+    set((s) => ({
+      users: [...s.users, user],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'user' as any,
+        message: `User ${user.name} created with role ${user.role}`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        icon: 'user-plus',
+        severity: 'success' as const,
+      }, ...s.activityLogs],
+    }));
+  },
+
+  updateUser: (userId, updates) => {
+    set((s) => ({
+      users: s.users.map(u => u.id === userId ? { ...u, ...updates } : u),
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'user' as any,
+        message: `User ${userId} updated`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        icon: 'edit',
+        severity: 'info' as const,
+      }, ...s.activityLogs],
+    }));
+  },
+
+  updateVehicle: (vehicleId, updates) => {
+    set((s) => ({
+      vehicles: s.vehicles.map(v => v.id === vehicleId ? { ...v, ...updates } : v),
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'vehicle',
+        message: `Bus ${vehicleId} assignment updated`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        icon: 'truck',
+        severity: 'info' as const,
+      }, ...s.activityLogs],
+    }));
   },
 
   markNotificationRead: (id) => set((s) => ({

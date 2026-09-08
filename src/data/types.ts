@@ -9,16 +9,32 @@ export type EscalationLevel = 'primary' | 'secondary' | 'authority';
 export type TripStatus = 'not_started' | 'starting' | 'in_progress' | 'delayed' | 'stopped' | 'completed' | 'scheduled' | 'cancelled';
 export type DriverEyeStatus = 'open' | 'closed' | 'squinting';
 export type DriverAttention = 'normal' | 'distracted' | 'absent';
-export type UserRole = 'admin' | 'parent' | 'driver';
+export type UserRole = 'super_admin' | 'admin' | 'school_staff' | 'teacher' | 'driver' | 'parent';
+
+export type UserStatus = 'active' | 'inactive' | 'suspended';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  phone?: string;
+  status: UserStatus;
   studentIds?: string[];
   driverId?: string;
   assignedVehicleId?: string;
+  assignedRouteId?: string;
+  profilePhoto?: string;
+  createdAt?: string;
+}
+
+export interface BusAssignment {
+  busId: string;
+  driverId: string;
+  attendantId?: string;
+  routeId: string;
+  gpsDeviceId?: string;
+  dashcamId?: string;
 }
 
 export type DriverMonitoringStateType =
