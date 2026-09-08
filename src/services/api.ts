@@ -95,16 +95,29 @@ export const tripsAPI = {
 
 // Attendance
 export const attendanceAPI = {
-  scan: (qrData: string, busId: string, driverId: string, action: string) =>
+  scan: (qrData: string, busId: string, driverId: string, action: 'pick' | 'drop') =>
     apiRequest<{
-      success: boolean;
-      student: { id: string; name: string };
-      attendanceStatus: string;
+      id: number;
+      student: number;
+      student_name: string;
+      bus: number;
+      bus_number: string;
+      route: number;
+      route_name: string;
+      driver: number;
+      driver_name: string;
+      status: string;
       timestamp: string;
-      message?: string;
+      method: string;
+      trip_stage: string;
     }>('/attendance/scan/', {
       method: 'POST',
-      body: JSON.stringify({ qrData, busId, driverId, action }),
+      body: JSON.stringify({
+        qr_data: qrData,
+        bus_id: parseInt(busId.replace(/\D/g, ''), 10) || 1,
+        driver_id: parseInt(driverId.replace(/\D/g, ''), 10) || 1,
+        action,
+      }),
     }),
 
   list: (params?: { bus?: string; date?: string; student?: string }) => {

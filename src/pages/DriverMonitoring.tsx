@@ -341,81 +341,77 @@ export default function DriverMonitoring() {
       </div>
 
       <div className="glass-card p-4 md:p-6">
-        <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4 flex items-center gap-2">
-          <Monitor className="w-4 h-4 text-electric-400" />
-          Demo Controls
-        </h3>
-        <p className="text-[10px] dark:text-gray-400 text-surface-500 mb-4">
-          Simulate driver drowsiness detection flow. Uses the same state machine as real camera detection.
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold dark:text-white text-surface-900 flex items-center gap-2">
+            <Settings className="w-4 h-4 text-electric-400" />
+            Live Diagnostics
+          </h3>
           <button
-            onClick={demoSimulateEyesClosed}
-            disabled={demoTimerRunning || monitorState === 'alarm_active' || monitorState === 'sos_active'}
-            className="flex items-center justify-center gap-2 px-3 py-3 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setShowDebug(!showDebug)}
+            className="flex items-center gap-1 text-[10px] dark:text-gray-400 text-surface-500 hover:text-white transition-colors"
           >
-            <EyeOff className="w-4 h-4" />
-            Eyes Closed
-          </button>
-          <button
-            onClick={demoOpenEyes}
-            disabled={!demoTimerRunning && monitorState !== 'eyes_closed'}
-            className="flex items-center justify-center gap-2 px-3 py-3 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Eye className="w-4 h-4" />
-            Open Eyes
-          </button>
-          <button
-            onClick={demoTriggerDrowsiness}
-            disabled={monitorState === 'alarm_active' || monitorState === 'sos_active'}
-            className="flex items-center justify-center gap-2 px-3 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Zap className="w-4 h-4" />
-            Trigger Drowsiness
-          </button>
-          <button
-            onClick={demoReset}
-            className="flex items-center justify-center gap-2 px-3 py-3 bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 rounded-xl text-xs font-bold transition-colors"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset
+            {showDebug ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {showDebug ? 'Hide' : 'Show'} Debug
           </button>
         </div>
 
-        {demoTimerRunning && (
-          <div className="mt-4 bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] text-orange-300 font-bold">DEMO TIMER RUNNING</p>
-              <p className="text-sm font-mono font-bold text-orange-400">
-                {formatTime(demoTimer)} / 00:05
-              </p>
-            </div>
-            <div className="w-full h-3 bg-navy-700 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-100 ${
-                  (demoTimer / DROWSINESS_THRESHOLD_MS) >= 1 ? 'bg-red-500' : 'bg-orange-500'
-                }`}
-                style={{ width: `${Math.min(demoTimer / DROWSINESS_THRESHOLD_MS, 1) * 100}%` }}
-              />
-            </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3 mb-4">
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Camera</p>
+            <p className={`text-[10px] font-bold ${
+              monitoringState.cameraState === 'active' ? 'text-emerald-400' :
+              monitoringState.cameraState === 'connecting' ? 'text-amber-400' : 'text-red-400'
+            }`}>
+              {monitoringState.cameraState === 'active' ? 'CONNECTED' :
+               monitoringState.cameraState === 'connecting' ? 'CONNECTING' : 'DISCONNECTED'}
+            </p>
           </div>
-        )}
-      </div>
-
-      <div className="glass-card overflow-hidden">
-        <button
-          onClick={() => setShowDebug(!showDebug)}
-          className="w-full p-4 flex items-center justify-between dark:hover:bg-navy-700/30 hover:bg-surface-50 transition-colors"
-        >
-          <h3 className="text-sm font-bold dark:text-white text-surface-900 flex items-center gap-2">
-            <Settings className="w-4 h-4 text-gray-400" />
-            Detection Debug
-          </h3>
-          {showDebug ? <ChevronUp className="w-4 h-4 dark:text-gray-400 text-surface-500" /> : <ChevronDown className="w-4 h-4 dark:text-gray-400 text-surface-500" />}
-        </button>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Face</p>
+            <p className={`text-[10px] font-bold ${monitoringState.faceDetected ? 'text-emerald-400' : 'text-red-400'}`}>
+              {monitoringState.faceDetected ? 'DETECTED' : 'NOT DETECTED'}
+            </p>
+          </div>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Left Eye</p>
+            <p className={`text-[10px] font-bold ${monitoringState.leftEyeOpen ? 'text-emerald-400' : 'text-red-400'}`}>
+              {monitoringState.leftEyeOpen ? 'OPEN' : 'CLOSED'}
+            </p>
+          </div>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Right Eye</p>
+            <p className={`text-[10px] font-bold ${monitoringState.rightEyeOpen ? 'text-emerald-400' : 'text-red-400'}`}>
+              {monitoringState.rightEyeOpen ? 'OPEN' : 'CLOSED'}
+            </p>
+          </div>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Left EAR</p>
+            <p className={`text-[10px] font-mono font-bold ${eyeStateColor(monitoringState.leftEAR)}`}>
+              {monitoringState.leftEAR.toFixed(3)}
+            </p>
+          </div>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Right EAR</p>
+            <p className={`text-[10px] font-mono font-bold ${eyeStateColor(monitoringState.rightEAR)}`}>
+              {monitoringState.rightEAR.toFixed(3)}
+            </p>
+          </div>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Avg EAR</p>
+            <p className={`text-[10px] font-mono font-bold ${eyeStateColor(monitoringState.avgEAR)}`}>
+              {monitoringState.avgEAR.toFixed(3)}
+            </p>
+          </div>
+          <div className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
+            <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">Thresholds</p>
+            <p className="text-[10px] font-mono font-bold text-gray-300">
+              {monitoringState.openThreshold.toFixed(3)} / {monitoringState.closedThreshold.toFixed(3)}
+            </p>
+          </div>
+        </div>
 
         {showDebug && (
-          <div className="px-4 pb-4 border-t dark:border-white/5 border-surface-200 pt-4">
+          <div className="border-t dark:border-white/5 border-surface-200 pt-4 mt-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {[
                 { label: 'FPS', value: monitoringState.fps || 0, color: 'dark:text-white text-surface-900' },
@@ -432,6 +428,8 @@ export default function DriverMonitoring() {
                 { label: 'Right Eye State', value: monitoringState.rightEyeState.toUpperCase(), color: monitoringState.rightEyeState === 'open' ? 'text-emerald-400' : monitoringState.rightEyeState === 'closing' ? 'text-amber-400' : 'text-red-400' },
                 { label: 'Calibrated', value: monitoringState.isCalibrated ? 'YES' : 'NO', color: monitoringState.isCalibrated ? 'text-emerald-400' : 'text-amber-400' },
                 { label: 'Calibration', value: `${Math.round((monitoringState.calibrationProgress || 0) * 100)}%`, color: 'text-electric-400' },
+                { label: 'Closure Duration', value: `${Math.floor((monitoringState.closureDuration || 0) / 1000)}s`, color: 'text-amber-400' },
+                { label: 'Drowsiness Score', value: (monitoringState.drowsinessScore || 0).toFixed(2), color: monitoringState.drowsinessScore > 0.5 ? 'text-red-400' : 'dark:text-white text-surface-900' },
               ].map(item => (
                 <div key={item.label} className="dark:bg-navy-700/30 bg-surface-50 rounded-xl p-3">
                   <p className="text-[9px] dark:text-gray-400 text-surface-500 mb-0.5">{item.label}</p>
@@ -473,6 +471,68 @@ export default function DriverMonitoring() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="glass-card p-4 md:p-6">
+        <h3 className="text-sm font-bold dark:text-white text-surface-900 mb-4 flex items-center gap-2">
+          <Monitor className="w-4 h-4 text-electric-400" />
+          Simulation Controls
+        </h3>
+        <p className="text-[10px] dark:text-gray-400 text-surface-500 mb-4">
+          Simulate driver drowsiness detection flow for testing. Uses the same state machine as real camera detection.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-3">
+          <button
+            onClick={demoSimulateEyesClosed}
+            disabled={demoTimerRunning || monitorState === 'alarm_active' || monitorState === 'sos_active'}
+            className="flex items-center justify-center gap-2 px-3 py-3 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <EyeOff className="w-4 h-4" />
+            Eyes Closed
+          </button>
+          <button
+            onClick={demoOpenEyes}
+            disabled={!demoTimerRunning && monitorState !== 'eyes_closed'}
+            className="flex items-center justify-center gap-2 px-3 py-3 bg-green-600/20 hover:bg-green-600/30 text-green-400 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Eye className="w-4 h-4" />
+            Open Eyes
+          </button>
+          <button
+            onClick={demoTriggerDrowsiness}
+            disabled={monitorState === 'alarm_active' || monitorState === 'sos_active'}
+            className="flex items-center justify-center gap-2 px-3 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Zap className="w-4 h-4" />
+            Trigger Drowsiness
+          </button>
+          <button
+            onClick={demoReset}
+            className="flex items-center justify-center gap-2 px-3 py-3 bg-gray-600/20 hover:bg-gray-600/30 text-gray-400 rounded-xl text-xs font-bold transition-colors"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset
+          </button>
+        </div>
+
+        {demoTimerRunning && (
+          <div className="mt-4 bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] text-orange-300 font-bold">SIMULATION TIMER RUNNING</p>
+              <p className="text-sm font-mono font-bold text-orange-400">
+                {formatTime(demoTimer)} / 00:05
+              </p>
+            </div>
+            <div className="w-full h-3 bg-navy-700 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-100 ${
+                  (demoTimer / DROWSINESS_THRESHOLD_MS) >= 1 ? 'bg-red-500' : 'bg-orange-500'
+                }`}
+                style={{ width: `${Math.min(demoTimer / DROWSINESS_THRESHOLD_MS, 1) * 100}%` }}
+              />
             </div>
           </div>
         )}

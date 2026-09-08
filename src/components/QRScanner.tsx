@@ -7,14 +7,17 @@ interface QRScannerProps {
   isActive: boolean;
 }
 
+type CameraStatus = 'idle' | 'starting' | 'active' | 'denied' | 'unavailable' | 'error';
+
 export default function QRScanner({ onScan, isActive }: QRScannerProps) {
-  const [cameraActive, setCameraActive] = useState(false);
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus>('idle');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [lastDecoded, setLastDecoded] = useState<string>('');
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<string>('');
   const scanDebounceRef = useRef(0);
+  const mountedRef = useRef(true);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
@@ -24,31 +27,65 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
           await scannerRef.current.stop();
         }
       } catch {}
-      scannerRef.current.clear();
+      try {
+        scannerRef.current.clear();
+      } catch {}
       scannerRef.current = null;
     }
-    setCameraActive(false);
+    if (mountedRef.current) {
+      setCameraStatus('idle');
+    }
   }, []);
 
   const startScanner = useCallback(async () => {
+    if (!isActive) return;
+
     try {
       setCameraError(null);
+      setCameraStatus('starting');
       await stopScanner();
 
-      const scanner = new Html5Qrcode('qr-reader');
-      scannerRef.current = scanner;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraStatus('unavailable');
+        setCameraError('Camera not supported. Use HTTPS or a modern browser.');
+        return;
+      }
 
-      const cameras = await Html5Qrcode.getCameras();
-      if (cameras.length === 0) {
+      let cameras;
+      try {
+        cameras = await Html5Qrcode.getCameras();
+      } catch {
+        setCameraStatus('unavailable');
+        setCameraError('Could not enumerate cameras. Check browser permissions.');
+        return;
+      }
+
+      if (!cameras || cameras.length === 0) {
+        setCameraStatus('unavailable');
         setCameraError('No cameras found on this device.');
         return;
       }
 
-      const preferredCamera = facingMode === 'environment'
-        ? cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear') || c.label.toLowerCase().includes('environment'))
-        : cameras.find(c => c.label.toLowerCase().includes('front') || c.label.toLowerCase().includes('user'));
+      let preferredCamera = null;
+      if (facingMode === 'environment') {
+        preferredCamera = cameras.find(c => {
+          const label = (c.label || '').toLowerCase();
+          return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('trouver');
+        });
+        if (!preferredCamera && cameras.length > 1) {
+          preferredCamera = cameras[cameras.length - 1];
+        }
+      } else {
+        preferredCamera = cameras.find(c => {
+          const label = (c.label || '').toLowerCase();
+          return label.includes('front') || label.includes('user') || label.includes('face');
+        });
+      }
 
-      const cameraId = preferredCamera?.id || cameras[cameras.length - 1].id;
+      const cameraId = preferredCamera?.id || cameras[0].id;
+
+      const scanner = new Html5Qrcode('qr-reader');
+      scannerRef.current = scanner;
 
       await scanner.start(
         cameraId,
@@ -59,7 +96,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         },
         (decodedText) => {
           const now = Date.now();
-          if (now - scanDebounceRef.current < 2000) return;
+          if (now - scanDebounceRef.current < 2500) return;
           if (decodedText === lastScanRef.current && now - scanDebounceRef.current < 5000) return;
 
           scanDebounceRef.current = now;
@@ -70,55 +107,129 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         () => {}
       );
 
-      setCameraActive(true);
+      if (mountedRef.current) {
+        setCameraStatus('active');
+      }
     } catch (err: any) {
       console.error('QR Scanner error:', err);
-      setCameraError(
-        err.message?.includes('Permission')
-          ? 'Camera permission denied. Please allow camera access.'
-          : err.message?.includes('not found')
-          ? 'No camera found on this device.'
-          : 'Unable to start QR scanner. Try again.'
-      );
-      setCameraActive(false);
+      let errorMsg = 'Unable to start QR scanner. Try again.';
+      let status: CameraStatus = 'error';
+
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
+        errorMsg = 'Camera permission denied. Please allow camera access in your browser settings and reload.';
+        status = 'denied';
+      } else if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
+        errorMsg = 'No camera found on this device.';
+        status = 'unavailable';
+      } else if (err.name === 'NotReadableError') {
+        errorMsg = 'Camera is in use by another application.';
+        status = 'error';
+      } else if (err.message?.includes('Permission')) {
+        errorMsg = 'Camera permission denied. Please allow camera access.';
+        status = 'denied';
+      } else if (err.message?.includes('secure context')) {
+        errorMsg = 'Camera requires HTTPS. Open this page via HTTPS.';
+        status = 'error';
+      }
+
+      if (mountedRef.current) {
+        setCameraError(errorMsg);
+        setCameraStatus(status);
+      }
     }
-  }, [facingMode, onScan, stopScanner]);
+  }, [facingMode, onScan, stopScanner, isActive]);
 
   const switchCamera = useCallback(() => {
     setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
-    if (cameraActive) {
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopScanner();
+    };
+  }, [stopScanner]);
+
+  useEffect(() => {
+    if (!isActive && cameraStatus === 'active') {
+      stopScanner();
+    }
+  }, [isActive, cameraStatus, stopScanner]);
+
+  useEffect(() => {
+    if (facingMode && cameraStatus === 'active') {
       stopScanner().then(() => {
         setTimeout(() => startScanner(), 300);
       });
     }
-  }, [cameraActive, startScanner, stopScanner]);
+  }, [facingMode]);
 
-  useEffect(() => {
-    return () => { stopScanner(); };
-  }, [stopScanner]);
-
-  useEffect(() => {
-    if (!isActive && cameraActive) {
-      stopScanner();
+  const getStatusIndicator = () => {
+    switch (cameraStatus) {
+      case 'active':
+        return <span className="w-1.5 h-1.5 rounded-full bg-green-400"></span>;
+      case 'starting':
+        return <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>;
+      case 'denied':
+      case 'unavailable':
+      case 'error':
+        return <span className="w-1.5 h-1.5 rounded-full bg-red-400"></span>;
+      default:
+        return <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>;
     }
-  }, [isActive, cameraActive, stopScanner]);
+  };
+
+  const getStatusText = () => {
+    switch (cameraStatus) {
+      case 'active':
+        return 'Scanner Ready';
+      case 'starting':
+        return 'Starting Camera...';
+      case 'denied':
+        return 'Permission Denied';
+      case 'unavailable':
+        return 'Camera Unavailable';
+      case 'error':
+        return 'Camera Error';
+      default:
+        return 'Scanner Idle';
+    }
+  };
 
   return (
     <div className="space-y-3">
       <div className="relative dark:bg-navy-900 bg-surface-100 rounded-2xl overflow-hidden border dark:border-white/10 border-surface-200" style={{ minHeight: '280px' }}>
         <div id="qr-reader" className="w-full" style={{ minHeight: '280px' }} />
 
-        {!cameraActive && (
+        {cameraStatus !== 'active' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
-            <div className="w-16 h-16 rounded-full dark:bg-navy-700/50 bg-surface-200 flex items-center justify-center mb-3">
-              <Camera className="w-8 h-8 dark:text-gray-500 text-surface-500" />
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 ${
+              cameraStatus === 'denied' || cameraStatus === 'error' || cameraStatus === 'unavailable'
+                ? 'bg-red-500/20'
+                : cameraStatus === 'starting'
+                ? 'bg-amber-500/20'
+                : 'dark:bg-navy-700/50 bg-surface-200'
+            }`}>
+              {cameraStatus === 'denied' || cameraStatus === 'error' || cameraStatus === 'unavailable' ? (
+                <CameraOff className="w-8 h-8 text-red-400" />
+              ) : cameraStatus === 'starting' ? (
+                <div className="w-8 h-8 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Camera className="w-8 h-8 dark:text-gray-500 text-surface-500" />
+              )}
             </div>
             {cameraError ? (
               <div className="text-center">
-                <p className="text-xs text-red-400 mb-2">{cameraError}</p>
+                <p className="text-xs text-red-400 mb-2 max-w-[200px]">{cameraError}</p>
                 <button onClick={startScanner} className="btn-primary text-xs py-2 px-4">
                   Retry
                 </button>
+              </div>
+            ) : cameraStatus === 'starting' ? (
+              <div className="text-center">
+                <p className="text-xs text-amber-400 mb-1">Initializing camera...</p>
+                <p className="text-[10px] dark:text-gray-500 text-surface-500">Please allow camera access when prompted</p>
               </div>
             ) : (
               <div className="text-center">
@@ -129,7 +240,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
           </div>
         )}
 
-        {cameraActive && (
+        {cameraStatus === 'active' && (
           <>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="w-56 h-56 border-2 border-electric-500/50 rounded-2xl relative">
@@ -141,7 +252,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
               </div>
             </div>
             <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1 z-10">
-              <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
               <span className="text-[9px] text-white font-bold">SCANNING</span>
             </div>
             {lastDecoded && (
@@ -153,18 +264,28 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         )}
       </div>
 
+      <div className="flex items-center gap-2 text-[10px] dark:text-gray-400 text-surface-500">
+        {getStatusIndicator()}
+        <span>{getStatusText()}</span>
+      </div>
+
       <div className="flex gap-2">
-        {!cameraActive ? (
+        {cameraStatus !== 'active' ? (
           <button
             onClick={startScanner}
-            disabled={!isActive}
+            disabled={!isActive || cameraStatus === 'starting'}
             className={`flex-1 text-xs py-2.5 flex items-center justify-center gap-2 rounded-xl font-bold transition-all ${
-              isActive
+              isActive && cameraStatus !== 'starting'
                 ? 'bg-gradient-to-r from-electric-600 to-electric-700 text-white hover:from-electric-500 hover:to-electric-600 shadow-lg shadow-electric-500/25'
                 : 'dark:bg-navy-700/50 bg-surface-200 dark:text-gray-500 text-surface-500 cursor-not-allowed'
             }`}
           >
-            <Camera className="w-4 h-4" /> Start QR Scanner
+            {cameraStatus === 'starting' ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Camera className="w-4 h-4" />
+            )}
+            {cameraStatus === 'starting' ? 'Starting...' : 'Start QR Scanner'}
           </button>
         ) : (
           <>

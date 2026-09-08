@@ -7,7 +7,7 @@ import { useStore } from '../store/useStore';
 import {
   Camera, MapPin, Volume2, Brain, Shield, AlertTriangle,
   Phone, Eye, EyeOff, CheckCircle, XCircle,
-  Navigation, Clock, Wifi, WifiOff, Zap, Video
+  Navigation, Clock, Wifi, WifiOff, Zap, Video, Settings
 } from 'lucide-react';
 
 type PermissionStep = 'camera' | 'location' | 'sound' | 'ready';
@@ -33,6 +33,7 @@ export default function Driver() {
   const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]);
   const [selectedDriver] = useState<string>('DRV-07');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const closureTimerRef = useRef<number | null>(null);
   const responseTimerRef = useRef<number | null>(null);
   const eyesClosedAtRef = useRef<number | null>(null);
@@ -328,6 +329,12 @@ export default function Driver() {
 
   const cameraStatus = getCameraStatusText();
 
+  const eyeStateColor = (ear: number) => {
+    if (ear >= faceDetection.openThreshold) return 'text-green-400';
+    if (ear <= faceDetection.closedThreshold) return 'text-red-400';
+    return 'text-amber-400';
+  };
+
   return (
     <div className="min-h-screen bg-navy-950 text-white flex flex-col" style={{ maxWidth: '430px', margin: '0 auto' }}>
       <header className="bg-navy-900/80 backdrop-blur-sm px-4 py-3 border-b border-white/5">
@@ -349,23 +356,102 @@ export default function Driver() {
             <CheckCircle className="w-8 h-8 text-green-400" />
           </div>
           <div className="text-center">
-            <h2 className="text-lg font-bold text-green-400">DRIVER SAFETY SYSTEM READY</h2>
-            <p className="text-xs text-gray-400 mt-1">Camera will start automatically</p>
+            <h2 className="text-lg font-bold text-green-400">DRIVER SAFETY SYSTEM</h2>
+            <p className="text-xs text-gray-400 mt-1">Grant permissions to start</p>
           </div>
-          <div className="space-y-2 w-full">
-            <div className="flex items-center gap-2 text-xs">
-              <CheckCircle className="w-4 h-4 text-green-400" />
-              <span>Drowsiness Detection Active</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <CheckCircle className="w-4 h-4 text-green-400" />
-              <span>GPS Tracking Ready</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              <CheckCircle className="w-4 h-4 text-green-400" />
-              <span>Alert Sound Ready</span>
-            </div>
+
+          <div className="w-full space-y-2">
+            <button
+              onClick={checkCameraPermission}
+              disabled={cameraPermission}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                cameraPermission
+                  ? 'bg-green-600/20 border border-green-600/30'
+                  : permissionStep === 'camera'
+                  ? 'bg-navy-800/80 border border-electric-500/30'
+                  : 'bg-navy-800/30 border border-white/5 opacity-50'
+              }`}
+            >
+              {cameraPermission ? (
+                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+              ) : permissionStep === 'camera' ? (
+                <Camera className="w-5 h-5 text-electric-400 flex-shrink-0" />
+              ) : (
+                <Camera className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              )}
+              <div className="text-left flex-1">
+                <p className={`text-xs font-bold ${cameraPermission ? 'text-green-400' : 'text-white'}`}>
+                  Camera Access
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {cameraPermission ? 'Granted' : permissionStep === 'camera' ? 'Tap to grant' : 'Pending'}
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={requestLocation}
+              disabled={locationPermission || !cameraPermission}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                locationPermission
+                  ? 'bg-green-600/20 border border-green-600/30'
+                  : permissionStep === 'location'
+                  ? 'bg-navy-800/80 border border-electric-500/30'
+                  : 'bg-navy-800/30 border border-white/5 opacity-50'
+              }`}
+            >
+              {locationPermission ? (
+                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+              ) : permissionStep === 'location' ? (
+                <MapPin className="w-5 h-5 text-electric-400 flex-shrink-0" />
+              ) : (
+                <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              )}
+              <div className="text-left flex-1">
+                <p className={`text-xs font-bold ${locationPermission ? 'text-green-400' : 'text-white'}`}>
+                  Location Access
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {locationPermission ? 'Granted' : permissionStep === 'location' ? 'Tap to grant' : 'Pending'}
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={enableSound}
+              disabled={soundPermission || !locationPermission}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                soundPermission
+                  ? 'bg-green-600/20 border border-green-600/30'
+                  : permissionStep === 'sound'
+                  ? 'bg-navy-800/80 border border-electric-500/30'
+                  : 'bg-navy-800/30 border border-white/5 opacity-50'
+              }`}
+            >
+              {soundPermission ? (
+                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+              ) : permissionStep === 'sound' ? (
+                <Volume2 className="w-5 h-5 text-electric-400 flex-shrink-0" />
+              ) : (
+                <Volume2 className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              )}
+              <div className="text-left flex-1">
+                <p className={`text-xs font-bold ${soundPermission ? 'text-green-400' : 'text-white'}`}>
+                  Alert Sound
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  {soundPermission ? 'Granted' : permissionStep === 'sound' ? 'Tap to enable' : 'Pending'}
+                </p>
+              </div>
+            </button>
           </div>
+
+          {cameraError && (
+            <div className="w-full bg-red-900/30 border border-red-500/30 rounded-xl p-3">
+              <p className="text-[10px] text-red-400">{cameraError}</p>
+            </div>
+          )}
+
           <div className="w-full space-y-2">
             <div className="bg-navy-800/50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400">Vehicle</p>
@@ -376,7 +462,16 @@ export default function Driver() {
               <p className="text-sm font-bold">{driver?.fullName || 'Select Driver'}</p>
             </div>
           </div>
-          <button onClick={startTrip} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
+
+          <button
+            onClick={startTrip}
+            disabled={!cameraPermission || !locationPermission || !soundPermission}
+            className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-bold transition-all ${
+              cameraPermission && locationPermission && soundPermission
+                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-500 hover:to-green-600 shadow-lg shadow-green-500/25'
+                : 'bg-navy-700/50 text-gray-500 cursor-not-allowed'
+            }`}
+          >
             <Zap className="w-4 h-4" /> START TRIP
           </button>
         </div>
@@ -538,6 +633,96 @@ export default function Driver() {
                   />
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1 text-center">{closureSeconds} / 5 Seconds</p>
+              </div>
+            )}
+
+            <button
+              onClick={() => setShowDiagnostics(!showDiagnostics)}
+              className="w-full py-2 bg-navy-800/50 hover:bg-navy-700/50 rounded-xl text-[10px] text-gray-400 flex items-center justify-center gap-1 transition-colors"
+            >
+              <Settings className="w-3 h-3" />
+              {showDiagnostics ? 'Hide Diagnostics' : 'Show Diagnostics'}
+            </button>
+
+            {showDiagnostics && (
+              <div className="bg-navy-900/80 border border-white/10 rounded-xl p-3 space-y-2">
+                <p className="text-[10px] text-electric-400 font-bold mb-2">DASHCAM DIAGNOSTICS</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Camera</p>
+                    <p className={`text-[10px] font-bold ${faceDetection.cameraState === 'active' ? 'text-green-400' : faceDetection.cameraState === 'connecting' ? 'text-amber-400' : 'text-red-400'}`}>
+                      {faceDetection.cameraState === 'active' ? 'CONNECTED' : faceDetection.cameraState === 'connecting' ? 'CONNECTING' : 'DISCONNECTED'}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Face</p>
+                    <p className={`text-[10px] font-bold ${faceDetection.faceDetected ? 'text-green-400' : 'text-red-400'}`}>
+                      {faceDetection.faceDetected ? 'DETECTED' : 'NOT DETECTED'}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Left Eye</p>
+                    <p className={`text-[10px] font-bold ${eyeStateColor(faceDetection.leftEAR)}`}>
+                      {faceDetection.leftEyeOpen ? 'OPEN' : 'CLOSED'}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Right Eye</p>
+                    <p className={`text-[10px] font-bold ${eyeStateColor(faceDetection.rightEAR)}`}>
+                      {faceDetection.rightEyeOpen ? 'OPEN' : 'CLOSED'}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Left EAR</p>
+                    <p className={`text-[10px] font-mono font-bold ${eyeStateColor(faceDetection.leftEAR)}`}>
+                      {faceDetection.leftEAR.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Right EAR</p>
+                    <p className={`text-[10px] font-mono font-bold ${eyeStateColor(faceDetection.rightEAR)}`}>
+                      {faceDetection.rightEAR.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Avg EAR</p>
+                    <p className={`text-[10px] font-mono font-bold ${eyeStateColor(faceDetection.avgEAR)}`}>
+                      {faceDetection.avgEAR.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Threshold</p>
+                    <p className="text-[10px] font-mono font-bold text-gray-300">
+                      {faceDetection.openThreshold.toFixed(3)} / {faceDetection.closedThreshold.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Calibrated</p>
+                    <p className={`text-[10px] font-bold ${faceDetection.isCalibrated ? 'text-green-400' : 'text-amber-400'}`}>
+                      {faceDetection.isCalibrated ? 'YES' : `${Math.round(faceDetection.calibrationProgress * 100)}%`}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">FPS</p>
+                    <p className="text-[10px] font-mono font-bold text-gray-300">{faceDetection.fps}</p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Confidence</p>
+                    <p className="text-[10px] font-mono font-bold text-gray-300">{faceDetection.faceConfidence}%</p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
+                    <p className="text-[9px] text-gray-400">Closed Frames</p>
+                    <p className={`text-[10px] font-mono font-bold ${faceDetection.consecutiveClosedFrames > 0 ? 'text-amber-400' : 'text-gray-300'}`}>
+                      {faceDetection.consecutiveClosedFrames}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={faceDetection.recalibrate}
+                  className="w-full py-2 bg-electric-600/20 hover:bg-electric-600/30 rounded-lg text-[10px] text-electric-400 font-bold transition-colors"
+                >
+                  Recalibrate
+                </button>
               </div>
             )}
 

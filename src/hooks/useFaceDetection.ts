@@ -67,8 +67,6 @@ export function useFaceDetection() {
   const noFaceGraceRef = useRef(0);
   const lastBlinkTimeRef = useRef(0);
   const blinkCountRef = useRef(0);
-  const prevLeftEARRef = useRef(0);
-  const prevRightEARRef = useRef(0);
   const modelsLoadedRef = useRef(false);
 
   const [state, setState] = useState<FaceDetectionState>({
@@ -233,48 +231,38 @@ export function useFaceDetection() {
       const rawLeftClosed = smoothLeft < closedThresh;
       const rawRightClosed = smoothRight < closedThresh;
 
-      if (frameCountRef.current % 20 === 0) {
-        console.log(`[FaceDetect] L_EAR=${smoothLeft.toFixed(4)} R_EAR=${smoothRight.toFixed(4)} | open>${openThresh.toFixed(3)} closed<${closedThresh.toFixed(3)} | L=${rawLeftOpen?'OPEN':rawLeftClosed?'CLOSED':'MID'} R=${rawRightOpen?'OPEN':rawRightClosed?'CLOSED':'MID'}`);
-      }
-
+      // Left eye state with confirmation counters
       if (rawLeftOpen) {
         leftClosedCountRef.current = 0;
-        leftOpenCountRef.current = Math.min(leftOpenCountRef.current + 1, OPEN_CONFIRM_FRAMES + 1);
+        leftOpenCountRef.current++;
       } else if (rawLeftClosed) {
         leftOpenCountRef.current = 0;
-        leftClosedCountRef.current = Math.min(leftClosedCountRef.current + 1, CLOSED_CONFIRM_FRAMES + 1);
+        leftClosedCountRef.current++;
       }
 
+      // Right eye state with confirmation counters
       if (rawRightOpen) {
         rightClosedCountRef.current = 0;
-        rightOpenCountRef.current = Math.min(rightOpenCountRef.current + 1, OPEN_CONFIRM_FRAMES + 1);
+        rightOpenCountRef.current++;
       } else if (rawRightClosed) {
         rightOpenCountRef.current = 0;
-        rightClosedCountRef.current = Math.min(rightClosedCountRef.current + 1, CLOSED_CONFIRM_FRAMES + 1);
+        rightClosedCountRef.current++;
       }
 
       const prev = stateRef.current;
 
       let leftEyeOpen = prev.leftEyeOpen;
-      if (rawLeftOpen) {
-        leftClosedCountRef.current = 0;
-        leftOpenCountRef.current++;
-        if (leftOpenCountRef.current >= 2) leftEyeOpen = true;
-      } else if (rawLeftClosed) {
-        leftOpenCountRef.current = 0;
-        leftClosedCountRef.current++;
-        if (leftClosedCountRef.current >= 2) leftEyeOpen = false;
+      if (leftOpenCountRef.current >= OPEN_CONFIRM_FRAMES) {
+        leftEyeOpen = true;
+      } else if (leftClosedCountRef.current >= CLOSED_CONFIRM_FRAMES) {
+        leftEyeOpen = false;
       }
 
       let rightEyeOpen = prev.rightEyeOpen;
-      if (rawRightOpen) {
-        rightClosedCountRef.current = 0;
-        rightOpenCountRef.current++;
-        if (rightOpenCountRef.current >= 2) rightEyeOpen = true;
-      } else if (rawRightClosed) {
-        rightOpenCountRef.current = 0;
-        rightClosedCountRef.current++;
-        if (rightClosedCountRef.current >= 2) rightEyeOpen = false;
+      if (rightOpenCountRef.current >= OPEN_CONFIRM_FRAMES) {
+        rightEyeOpen = true;
+      } else if (rightClosedCountRef.current >= CLOSED_CONFIRM_FRAMES) {
+        rightEyeOpen = false;
       }
 
       const getEyeState = (ear: number, isOpen: boolean): EyeState => {
@@ -331,9 +319,6 @@ export function useFaceDetection() {
       const yaw = Math.atan2(rightEyeCenter.x - leftEyeCenter.x, 50) * (180 / Math.PI);
       const pitch = (noseTip.y - canvas.height / 2) / canvas.height * 60;
       const roll = Math.atan2(rightEyeCenter.y - leftEyeCenter.y, rightEyeCenter.x - leftEyeCenter.x) * (180 / Math.PI);
-
-      prevLeftEARRef.current = smoothLeft;
-      prevRightEARRef.current = smoothRight;
 
       setState(prev => ({
         ...prev,

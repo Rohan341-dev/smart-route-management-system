@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, SmartBusQRPayload, TripStatus, StopStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
+import { attendanceAPI } from '../services/api';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -649,8 +650,20 @@ export const useStore = create<AppState>((set, get) => ({
       scannedAt: now,
       scanType: isDropStage ? 'drop' : 'board',
       status: newStatus,
-      scannedBy: 'demo',
+      scannedBy: 'qr_camera',
     };
+
+    // Attempt to sync with Django backend
+    const busId = state.selectedAttendanceVehicle;
+    const driverId = state.currentUser?.driverId || 'DRV-07';
+    const action = isDropStage ? 'drop' : 'pick';
+    attendanceAPI.scan(qrCode, busId, driverId, action).then(result => {
+      if (result.error) {
+        console.warn('[Attendance] Backend sync failed:', result.error);
+      } else {
+        console.log('[Attendance] Backend sync success:', result.data);
+      }
+    }).catch(() => {});
 
     const event: AttendanceEvent = {
       id: `AEVT-${Date.now()}`,
