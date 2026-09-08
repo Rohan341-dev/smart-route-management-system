@@ -10,7 +10,6 @@ import {
   Navigation, Clock, Wifi, WifiOff, Zap, Video, Settings
 } from 'lucide-react';
 
-type PermissionStep = 'camera' | 'location' | 'sound' | 'ready';
 type DriverScreen = 'permissions' | 'monitoring' | 'drowsiness' | 'sos' | 'offline';
 
 const DROWSINESS_THRESHOLD_MS = 5000;
@@ -24,7 +23,6 @@ export default function Driver() {
   const webrtc = useWebRTC();
 
   const [screen, setScreen] = useState<DriverScreen>('permissions');
-  const [permissionStep, setPermissionStep] = useState<PermissionStep>('camera');
   const [cameraPermission, setCameraPermission] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
   const [soundPermission, setSoundPermission] = useState(false);
@@ -34,6 +32,7 @@ export default function Driver() {
   const [selectedDriver] = useState<string>('DRV-07');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
   const closureTimerRef = useRef<number | null>(null);
   const responseTimerRef = useRef<number | null>(null);
   const eyesClosedAtRef = useRef<number | null>(null);
@@ -67,49 +66,38 @@ export default function Driver() {
     }
   }, [gps.latitude, gps.longitude, gps.speed, gps.heading, gps.isActive, selectedDriver, selectedVehicle.id]);
 
-  const checkCameraPermission = useCallback(async () => {
+  const requestAllPermissions = useCallback(async () => {
     setCameraError(null);
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraError('Camera not supported. Use HTTPS or a modern browser.');
-      return false;
-    }
+    setIsRequesting(true);
 
     try {
+      // Camera
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach(t => t.stop());
       setCameraPermission(true);
-      setPermissionStep('location');
-      return true;
+
+      // Location
+      const granted = await gps.requestPermission();
+      setLocationPermission(granted);
+
+      // Sound
+      const ready = await buzzer.initAudio();
+      setSoundPermission(ready);
+
+      setIsRequesting(false);
     } catch (err: any) {
-      let msg = 'Camera unavailable';
+      setIsRequesting(false);
+      let msg = 'Permission denied. Please allow access and try again.';
       if (err.name === 'NotAllowedError') {
-        msg = 'Permission denied. In your browser: tap the lock/icon in the address bar → Camera → Allow, then reload this page.';
+        msg = 'Permission denied. Tap "Allow" in the browser prompt when it appears.';
       } else if (err.name === 'NotFoundError') {
         msg = 'No camera found on this device.';
       } else if (err.name === 'NotReadableError') {
         msg = 'Camera is in use by another app.';
-      } else {
-        msg = err.message || 'Unknown camera error';
       }
       setCameraError(msg);
-      return false;
     }
-  }, []);
-
-  const requestLocation = useCallback(async () => {
-    const granted = await gps.requestPermission();
-    setLocationPermission(granted);
-    if (granted) setPermissionStep('sound');
-    return granted;
-  }, [gps]);
-
-  const enableSound = useCallback(async () => {
-    const ready = await buzzer.initAudio();
-    setSoundPermission(ready);
-    if (ready) setPermissionStep('ready');
-    return ready;
-  }, [buzzer]);
+  }, [gps, buzzer]);
 
   const startTrip = useCallback(async () => {
     setScreen('monitoring');
@@ -266,7 +254,6 @@ export default function Driver() {
     setCameraPermission(false);
     setLocationPermission(false);
     setSoundPermission(false);
-    setPermissionStep('camera');
     setCameraError(null);
   }, [buzzer, gps, faceDetection, webrtc]);
 
@@ -357,102 +344,34 @@ export default function Driver() {
           </div>
           <div className="text-center">
             <h2 className="text-lg font-bold text-green-400">DRIVER SAFETY SYSTEM</h2>
-            <p className="text-xs text-gray-400 mt-1">Grant permissions to start</p>
+            <p className="text-xs text-gray-400 mt-1">Tap below to enable camera + GPS + alerts</p>
           </div>
 
-          <div className="w-full space-y-2">
-            <button
-              onClick={checkCameraPermission}
-              disabled={cameraPermission}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                cameraPermission
-                  ? 'bg-green-600/20 border border-green-600/30'
-                  : permissionStep === 'camera'
-                  ? 'bg-navy-800/80 border border-electric-500/30'
-                  : 'bg-navy-800/30 border border-white/5 opacity-50'
-              }`}
-            >
-              {cameraPermission ? (
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-              ) : permissionStep === 'camera' ? (
-                <Camera className="w-5 h-5 text-electric-400 flex-shrink-0" />
-              ) : (
-                <Camera className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              )}
-              <div className="text-left flex-1">
-                <p className={`text-xs font-bold ${cameraPermission ? 'text-green-400' : 'text-white'}`}>
-                  Camera Access
-                </p>
-                <p className="text-[10px] text-gray-400">
-                  {cameraPermission ? 'Granted' : permissionStep === 'camera' ? 'Tap to grant' : 'Pending'}
-                </p>
+          <div className="w-full space-y-3">
+            <div className="bg-navy-800/50 rounded-xl p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-electric-400" />
+                <span className="text-xs text-gray-300">Camera (face detection)</span>
+                {cameraPermission && <CheckCircle className="w-3 h-3 text-green-400 ml-auto" />}
               </div>
-            </button>
-
-            <button
-              onClick={requestLocation}
-              disabled={locationPermission || !cameraPermission}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                locationPermission
-                  ? 'bg-green-600/20 border border-green-600/30'
-                  : permissionStep === 'location'
-                  ? 'bg-navy-800/80 border border-electric-500/30'
-                  : 'bg-navy-800/30 border border-white/5 opacity-50'
-              }`}
-            >
-              {locationPermission ? (
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-              ) : permissionStep === 'location' ? (
-                <MapPin className="w-5 h-5 text-electric-400 flex-shrink-0" />
-              ) : (
-                <MapPin className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              )}
-              <div className="text-left flex-1">
-                <p className={`text-xs font-bold ${locationPermission ? 'text-green-400' : 'text-white'}`}>
-                  Location Access
-                </p>
-                <p className="text-[10px] text-gray-400">
-                  {locationPermission ? 'Granted' : permissionStep === 'location' ? 'Tap to grant' : 'Pending'}
-                </p>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-electric-400" />
+                <span className="text-xs text-gray-300">GPS (location tracking)</span>
+                {locationPermission && <CheckCircle className="w-3 h-3 text-green-400 ml-auto" />}
               </div>
-            </button>
-
-            <button
-              onClick={enableSound}
-              disabled={soundPermission || !locationPermission}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
-                soundPermission
-                  ? 'bg-green-600/20 border border-green-600/30'
-                  : permissionStep === 'sound'
-                  ? 'bg-navy-800/80 border border-electric-500/30'
-                  : 'bg-navy-800/30 border border-white/5 opacity-50'
-              }`}
-            >
-              {soundPermission ? (
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-              ) : permissionStep === 'sound' ? (
-                <Volume2 className="w-5 h-5 text-electric-400 flex-shrink-0" />
-              ) : (
-                <Volume2 className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              )}
-              <div className="text-left flex-1">
-                <p className={`text-xs font-bold ${soundPermission ? 'text-green-400' : 'text-white'}`}>
-                  Alert Sound
-                </p>
-                <p className="text-[10px] text-gray-400">
-                  {soundPermission ? 'Granted' : permissionStep === 'sound' ? 'Tap to enable' : 'Pending'}
-                </p>
+              <div className="flex items-center gap-2">
+                <Volume2 className="w-4 h-4 text-electric-400" />
+                <span className="text-xs text-gray-300">Sound (drowsiness alarm)</span>
+                {soundPermission && <CheckCircle className="w-3 h-3 text-green-400 ml-auto" />}
               </div>
-            </button>
-          </div>
-
-          {cameraError && (
-            <div className="w-full bg-red-900/30 border border-red-500/30 rounded-xl p-3">
-              <p className="text-[10px] text-red-400">{cameraError}</p>
             </div>
-          )}
 
-          <div className="w-full space-y-2">
+            {cameraError && (
+              <div className="bg-red-900/30 border border-red-500/30 rounded-xl p-3">
+                <p className="text-[10px] text-red-400">{cameraError}</p>
+              </div>
+            )}
+
             <div className="bg-navy-800/50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400">Vehicle</p>
               <p className="text-sm font-bold">{selectedVehicle.id} — {selectedVehicle.plateNumber}</p>
@@ -464,15 +383,20 @@ export default function Driver() {
           </div>
 
           <button
-            onClick={startTrip}
-            disabled={!cameraPermission || !locationPermission || !soundPermission}
-            className={`w-full py-3 text-sm flex items-center justify-center gap-2 rounded-xl font-bold transition-all ${
-              cameraPermission && locationPermission && soundPermission
-                ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-500 hover:to-green-600 shadow-lg shadow-green-500/25'
-                : 'bg-navy-700/50 text-gray-500 cursor-not-allowed'
-            }`}
+            onClick={requestAllPermissions}
+            disabled={isRequesting}
+            className="w-full py-4 bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-500 hover:to-green-600 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-500/25 transition-all"
           >
-            <Zap className="w-4 h-4" /> START TRIP
+            {isRequesting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Requesting permissions...
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4" /> ALLOW & START
+              </>
+            )}
           </button>
         </div>
       )}
