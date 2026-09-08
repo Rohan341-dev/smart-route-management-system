@@ -26,7 +26,7 @@ export default function Header() {
   };
 
   return (
-    <header className={`h-16 backdrop-blur-md border-b flex items-center justify-between px-3 md:px-6 transition-colors duration-200 dark:bg-navy-800/80 dark:border-white/5 bg-white border-surface-200 ${activeSOS ? 'dark:bg-red-900/30 bg-red-50' : ''}`}>
+    <header className={`h-16 backdrop-blur-md border-b flex items-center justify-between px-3 md:px-6 transition-colors duration-200 dark:bg-navy-800/80 dark:border-white/5 bg-white border-surface-200 relative z-50 ${activeSOS ? 'dark:bg-red-900/30 bg-red-50' : ''}`}>
       <div className="flex items-center gap-4">
         <div>
           <h2 className="text-lg font-bold dark:text-white text-surface-900">{pageTitle[currentPage] || 'Dashboard'}</h2>

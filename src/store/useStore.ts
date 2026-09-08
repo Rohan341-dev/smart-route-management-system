@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus } from '../data/types';
+import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -54,6 +54,18 @@ interface AppState {
   setSidebarOpen: (open: boolean) => void;
   setCurrentPage: (page: string) => void;
   toggleDemoMode: () => void;
+
+  // Driver monitoring state machine actions
+  setMonitoringState: (state: DriverMonitoringStateType) => void;
+  startEyeClosure: () => void;
+  updateEyeState: (leftOpen: boolean, rightOpen: boolean, faceDetected: boolean) => void;
+  resetEyeClosure: () => void;
+  confirmDrowsiness: () => void;
+  startAlarm: () => void;
+  stopAlarm: () => void;
+  acknowledgeDriver: () => void;
+  escalateToSOS: () => void;
+  resolveDriverEmergency: () => void;
 
   // Attendance actions
   setSelectedAttendanceVehicle: (id: string) => void;
@@ -114,6 +126,8 @@ export const useStore = create<AppState>((set, get) => ({
     isMonitoring: true,
     faceDetected: true,
     eyesOpen: true,
+    leftEyeOpen: true,
+    rightEyeOpen: true,
     eyeClosureDuration: 0,
     blinkFrequency: 15,
     headPosition: 'center',
@@ -122,6 +136,10 @@ export const useStore = create<AppState>((set, get) => ({
     buzzerActive: false,
     driverResponded: null,
     monitoringStartTime: Date.now(),
+    monitoringState: 'monitoring',
+    eyesClosedAt: null,
+    closureDuration: 0,
+    responseDeadline: null,
   },
 
   // Attendance initial state
@@ -138,6 +156,237 @@ export const useStore = create<AppState>((set, get) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setCurrentPage: (page) => set({ currentPage: page }),
   toggleDemoMode: () => set((s) => ({ demoModeActive: !s.demoModeActive })),
+
+  // Driver monitoring state machine actions
+  setMonitoringState: (newState) => set((s) => ({
+    monitoringState: { ...s.monitoringState, monitoringState: newState },
+  })),
+
+  startEyeClosure: () => {
+    const now = Date.now();
+    set((s) => ({
+      monitoringState: {
+        ...s.monitoringState,
+        monitoringState: 'eyes_closed',
+        eyesOpen: false,
+        eyesClosedAt: now,
+        closureDuration: 0,
+        attention: 'distracted',
+      },
+      drivers: s.drivers.map(d => d.id === 'DRV-07'
+        ? { ...d, eyeStatus: 'closed' as const, attention: 'distracted' as const }
+        : d
+      ),
+    }));
+  },
+
+  updateEyeState: (leftOpen, rightOpen, faceDetected) => set((s) => {
+    const bothOpen = leftOpen && rightOpen;
+    const prev = s.monitoringState;
+    const newState: Partial<typeof prev> = {
+      leftEyeOpen: leftOpen,
+      rightEyeOpen: rightOpen,
+      eyesOpen: bothOpen,
+      faceDetected,
+    };
+
+    if (!faceDetected) {
+      newState.monitoringState = 'no_face';
+      newState.eyesOpen = true;
+      newState.leftEyeOpen = true;
+      newState.rightEyeOpen = true;
+      newState.eyesClosedAt = null;
+      newState.closureDuration = 0;
+      newState.attention = 'normal';
+    }
+
+    return {
+      monitoringState: { ...prev, ...newState },
+      drivers: s.drivers.map(d => d.id === 'DRV-07'
+        ? { ...d, eyeStatus: bothOpen ? 'open' as const : 'closed' as const, attention: bothOpen ? 'normal' as const : 'distracted' as const }
+        : d
+      ),
+    };
+  }),
+
+  resetEyeClosure: () => set((s) => ({
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'monitoring',
+      eyesOpen: true,
+      leftEyeOpen: true,
+      rightEyeOpen: true,
+      eyesClosedAt: null,
+      closureDuration: 0,
+      attention: 'normal',
+    },
+    drivers: s.drivers.map(d => d.id === 'DRV-07'
+      ? { ...d, eyeStatus: 'open' as const, attention: 'normal' as const }
+      : d
+    ),
+  })),
+
+  confirmDrowsiness: () => {
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    set((s) => ({
+      monitoringState: {
+        ...s.monitoringState,
+        monitoringState: 'drowsiness_confirmed',
+        drowsinessDetected: true,
+        attention: 'absent',
+      },
+      drivers: s.drivers.map(d => d.id === 'DRV-07'
+        ? { ...d, attention: 'absent' as const, drowsinessAlerts: d.drowsinessAlerts + 1 }
+        : d
+      ),
+      driverAlerts: [{
+        id: `ALT-${Date.now()}`,
+        driverId: 'DRV-07',
+        vehicleId: 'BUS-107',
+        type: 'drowsiness' as const,
+        message: 'Driver eyes closed for 5 seconds - Drowsiness confirmed',
+        time: now,
+        severity: 'critical' as const,
+        acknowledged: false,
+      }, ...s.driverAlerts],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'driver',
+        message: 'DROWSINESS CONFIRMED - DRV-07 on BUS-107',
+        time: now,
+        icon: 'alert-triangle',
+        severity: 'danger' as const,
+      }, ...s.activityLogs],
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'driver' as const,
+        title: 'Critical Drowsiness Alert',
+        message: 'Driver eyes closed for 5 continuous seconds - Drowsiness confirmed',
+        time: now,
+        read: false,
+        severity: 'critical' as const,
+        vehicleId: 'BUS-107',
+        driverId: 'DRV-07',
+      }, ...s.notifications],
+    }));
+  },
+
+  startAlarm: () => set((s) => ({
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'alarm_active',
+      buzzerActive: true,
+    },
+  })),
+
+  stopAlarm: () => set((s) => ({
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'monitoring',
+      buzzerActive: false,
+      drowsinessDetected: false,
+      eyesOpen: true,
+      leftEyeOpen: true,
+      rightEyeOpen: true,
+      eyesClosedAt: null,
+      closureDuration: 0,
+      attention: 'normal',
+      driverResponded: true,
+      responseDeadline: null,
+    },
+    drivers: s.drivers.map(d => d.id === 'DRV-07'
+      ? { ...d, eyeStatus: 'open' as const, attention: 'normal' as const, safetyScore: Math.max(0, d.safetyScore - 1) }
+      : d
+    ),
+    activityLogs: [{
+      id: `LOG-${Date.now()}`,
+      type: 'driver',
+      message: 'Driver responded to drowsiness alert - Monitoring reset',
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      icon: 'check-circle',
+      severity: 'success' as const,
+    }, ...s.activityLogs],
+  })),
+
+  acknowledgeDriver: () => set((s) => ({
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'awaiting_response',
+      buzzerActive: true,
+      responseDeadline: Date.now() + 30000,
+    },
+  })),
+
+  escalateToSOS: () => {
+    const state = get();
+    const vehicle = state.vehicles.find(v => v.id === 'BUS-107') || state.vehicles[0];
+    const driver = state.drivers.find(d => d.id === 'DRV-07') || state.drivers[0];
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    set({
+      monitoringState: {
+        ...state.monitoringState,
+        monitoringState: 'sos_active',
+        buzzerActive: false,
+      },
+      sosAlerts: [{
+        id: `SOS-${Date.now()}`,
+        vehicleId: vehicle.id,
+        driverId: driver.id,
+        location: { lat: vehicle.currentLat || vehicle.lat, lng: vehicle.currentLng || vehicle.lng },
+        time: now,
+        reason: 'Driver did not respond to drowsiness alarm - SOS auto-escalated',
+        status: 'active' as const,
+        escalationLevel: 'primary' as const,
+        escalationTimer: 30,
+        primaryContact: { name: 'Principal Shrestha', phone: '+977-9841000001', type: 'School Admin', responded: false },
+        secondaryContact: { name: 'Transport Manager Lama', phone: '+977-9841000002', type: 'Transport Manager', responded: false },
+        authorityContact: { name: 'Emergency Services', phone: '100', type: 'Local Authority', responded: false },
+        primaryResponded: false,
+        secondaryResponded: false,
+        authorityResponded: false,
+      }],
+      vehicles: state.vehicles.map(v => v.id === vehicle.id ? { ...v, status: 'emergency' as const } : v),
+      drivers: state.drivers.map(d => d.id === driver.id ? { ...d, status: 'emergency' as const } : d),
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'emergency' as const,
+        title: 'SOS Emergency - Drowsiness',
+        message: `SOS triggered on ${vehicle.id} - Driver ${driver.fullName} unresponsive to drowsiness alarm`,
+        time: now,
+        read: false,
+        severity: 'critical' as const,
+        vehicleId: vehicle.id,
+      }, ...state.notifications],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'emergency',
+        message: `SOS ESCALATED on ${vehicle.id} - Driver unresponsive to drowsiness alarm`,
+        time: now,
+        icon: 'alert-triangle',
+        severity: 'danger' as const,
+      }, ...state.activityLogs],
+    });
+  },
+
+  resolveDriverEmergency: () => set((s) => ({
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'resolved',
+      buzzerActive: false,
+      drowsinessDetected: false,
+      eyesOpen: true,
+      leftEyeOpen: true,
+      rightEyeOpen: true,
+      eyesClosedAt: null,
+      closureDuration: 0,
+      attention: 'normal',
+      driverResponded: null,
+      responseDeadline: null,
+    },
+    sosAlerts: s.sosAlerts.map(sos => sos.status !== 'resolved' ? { ...sos, status: 'resolved' as const } : sos),
+    vehicles: s.vehicles.map(v => v.status === 'emergency' ? { ...v, status: 'stopped' as const } : v),
+    drivers: s.drivers.map(d => d.status === 'emergency' ? { ...d, status: 'active' as const } : d),
+  })),
 
   // Theme
   theme: getInitialTheme(),
@@ -489,41 +738,83 @@ export const useStore = create<AppState>((set, get) => ({
     })
   })),
 
-  simulateDrowsiness: () => set((s) => ({
-    monitoringState: { ...s.monitoringState, eyesOpen: false, eyeClosureDuration: 3, attention: 'distracted' as any, drowsinessDetected: false },
-    drivers: s.drivers.map(d => d.id === 'DRV-07' ? { ...d, eyeStatus: 'closed' as any, attention: 'distracted' as any } : d),
-    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'driver', message: 'Eye closure detected on DRV-07 - Monitoring', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'eye', severity: 'warning' }, ...s.activityLogs],
-  })),
+  simulateDrowsiness: () => {
+    const now = Date.now();
+    set((s) => ({
+      monitoringState: {
+        ...s.monitoringState,
+        monitoringState: 'eyes_closed',
+        eyesOpen: false,
+        leftEyeOpen: false,
+        rightEyeOpen: false,
+        eyesClosedAt: now,
+        closureDuration: 0,
+        attention: 'distracted',
+      },
+      drivers: s.drivers.map(d => d.id === 'DRV-07' ? { ...d, eyeStatus: 'closed' as const, attention: 'distracted' as const } : d),
+      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'driver', message: 'Eye closure detected on DRV-07 - Monitoring', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'eye', severity: 'warning' as const }, ...s.activityLogs],
+    }));
+  },
 
   triggerBuzzer: () => set((s) => ({
-    monitoringState: { ...s.monitoringState, eyesOpen: false, eyeClosureDuration: 5, drowsinessDetected: true, buzzerActive: true },
-    drivers: s.drivers.map(d => d.id === 'DRV-07' ? { ...d, eyeStatus: 'closed' as any, attention: 'absent' as any, drowsinessAlerts: d.drowsinessAlerts + 1 } : d),
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'alarm_active',
+      eyesOpen: false,
+      leftEyeOpen: false,
+      rightEyeOpen: false,
+      eyeClosureDuration: 5,
+      closureDuration: 5000,
+      drowsinessDetected: true,
+      buzzerActive: true,
+    },
+    drivers: s.drivers.map(d => d.id === 'DRV-07' ? { ...d, eyeStatus: 'closed' as const, attention: 'absent' as const, drowsinessAlerts: d.drowsinessAlerts + 1 } : d),
     driverAlerts: [{ id: `ALT-${Date.now()}`, driverId: 'DRV-07', vehicleId: 'BUS-107', type: 'drowsiness', message: 'Driver eyes closed for 5 seconds - Drowsiness detected', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), severity: 'critical', acknowledged: false }, ...s.driverAlerts],
-    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'driver', message: 'DROWSINESS ALERT - DRV-07 on BUS-107', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'alert-triangle', severity: 'danger' }, ...s.activityLogs],
+    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'driver', message: 'DROWSINESS ALERT - DRV-07 on BUS-107', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'alert-triangle', severity: 'danger' as const }, ...s.activityLogs],
   })),
 
   driverResponds: () => set((s) => ({
-    monitoringState: { ...s.monitoringState, eyesOpen: true, eyeClosureDuration: 0, drowsinessDetected: false, buzzerActive: false, driverResponded: true, attention: 'normal' },
-    drivers: s.drivers.map(d => d.id === 'DRV-07' ? { ...d, eyeStatus: 'open' as any, attention: 'normal' as any, safetyScore: Math.max(0, d.safetyScore - 1) } : d),
-    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'driver', message: 'DRV-07 responded to drowsiness alert - Monitoring reset', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'check-circle', severity: 'success' }, ...s.activityLogs],
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'monitoring',
+      eyesOpen: true,
+      leftEyeOpen: true,
+      rightEyeOpen: true,
+      eyeClosureDuration: 0,
+      closureDuration: 0,
+      eyesClosedAt: null,
+      drowsinessDetected: false,
+      buzzerActive: false,
+      driverResponded: true,
+      attention: 'normal',
+      responseDeadline: null,
+    },
+    drivers: s.drivers.map(d => d.id === 'DRV-07' ? { ...d, eyeStatus: 'open' as const, attention: 'normal' as const, safetyScore: Math.max(0, d.safetyScore - 1) } : d),
+    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'driver', message: 'DRV-07 responded to drowsiness alert - Monitoring reset', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'check-circle', severity: 'success' as const }, ...s.activityLogs],
   })),
 
   driverNoResponse: () => {
     const state = get();
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     set({
+      monitoringState: {
+        ...state.monitoringState,
+        monitoringState: 'sos_active',
+        buzzerActive: false,
+      },
       sosAlerts: [{
         id: `SOS-${Date.now()}`, vehicleId: 'BUS-107', driverId: 'DRV-07',
-        location: { lat: 27.7080, lng: 85.3150 }, time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        location: { lat: 27.7080, lng: 85.3150 }, time: now,
         reason: 'Driver did not respond to drowsiness alert', status: 'active', escalationLevel: 'primary', escalationTimer: 30,
         primaryContact: { name: 'Principal Shrestha', phone: '+977-9841000001', type: 'School Admin', responded: false },
         secondaryContact: { name: 'Transport Manager Lama', phone: '+977-9841000002', type: 'Transport Manager', responded: false },
         authorityContact: { name: 'Emergency Services', phone: '100', type: 'Local Authority', responded: false },
         primaryResponded: false, secondaryResponded: false, authorityResponded: false,
       }],
-      vehicles: state.vehicles.map(v => v.id === 'BUS-107' ? { ...v, status: 'emergency' as any } : v),
-      drivers: state.drivers.map(d => d.id === 'DRV-07' ? { ...d, status: 'emergency' as any } : d),
-      notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'SOS Alert', message: 'SOS triggered on BUS-107 - Driver did not respond to drowsiness alert', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), read: false, severity: 'critical', vehicleId: 'BUS-107' }, ...state.notifications],
-      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: 'SOS TRIGGERED on BUS-107 - Driver unresponsive', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'alert-triangle', severity: 'danger' }, ...state.activityLogs],
+      vehicles: state.vehicles.map(v => v.id === 'BUS-107' ? { ...v, status: 'emergency' as const } : v),
+      drivers: state.drivers.map(d => d.id === 'DRV-07' ? { ...d, status: 'emergency' as const } : d),
+      notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'SOS Alert', message: 'SOS triggered on BUS-107 - Driver did not respond to drowsiness alert', time: now, read: false, severity: 'critical', vehicleId: 'BUS-107' }, ...state.notifications],
+      activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: 'SOS TRIGGERED on BUS-107 - Driver unresponsive', time: now, icon: 'alert-triangle', severity: 'danger' as const }, ...state.activityLogs],
     });
   },
 
@@ -580,12 +871,26 @@ export const useStore = create<AppState>((set, get) => ({
   })),
 
   resolveEmergency: () => set((s) => ({
-    sosAlerts: s.sosAlerts.map(sos => sos.status !== 'resolved' ? { ...sos, status: 'resolved' as any } : sos),
-    vehicles: s.vehicles.map(v => v.status === 'emergency' ? { ...v, status: 'stopped' as any } : v),
-    drivers: s.drivers.map(d => d.status === 'emergency' ? { ...d, status: 'active' as any } : d),
-    monitoringState: { ...s.monitoringState, eyesOpen: true, eyeClosureDuration: 0, drowsinessDetected: false, buzzerActive: false, driverResponded: null, attention: 'normal' },
+    sosAlerts: s.sosAlerts.map(sos => sos.status !== 'resolved' ? { ...sos, status: 'resolved' as const } : sos),
+    vehicles: s.vehicles.map(v => v.status === 'emergency' ? { ...v, status: 'stopped' as const } : v),
+    drivers: s.drivers.map(d => d.status === 'emergency' ? { ...d, status: 'active' as const } : d),
+    monitoringState: {
+      ...s.monitoringState,
+      monitoringState: 'monitoring',
+      eyesOpen: true,
+      leftEyeOpen: true,
+      rightEyeOpen: true,
+      eyeClosureDuration: 0,
+      closureDuration: 0,
+      eyesClosedAt: null,
+      drowsinessDetected: false,
+      buzzerActive: false,
+      driverResponded: null,
+      attention: 'normal',
+      responseDeadline: null,
+    },
     notifications: [{ id: `NOT-${Date.now()}`, type: 'emergency', title: 'Emergency Resolved', message: 'Emergency incident has been resolved', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), read: false, severity: 'info' }, ...s.notifications],
-    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: 'Emergency RESOLVED', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'check-circle', severity: 'success' }, ...s.activityLogs],
+    activityLogs: [{ id: `LOG-${Date.now()}`, type: 'emergency', message: 'Emergency RESOLVED', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }), icon: 'check-circle', severity: 'success' as const }, ...s.activityLogs],
   })),
 
   simulateRouteDeviation: () => set((s) => {
@@ -642,37 +947,43 @@ export const useStore = create<AppState>((set, get) => ({
     } : d),
   })),
 
-  triggerDrowsiness: () => set((s) => {
-    const vehicle = s.vehicles[0];
-    const driver = s.drivers.find(d => d.id === 'DRV-07') || s.drivers[0];
+  triggerDrowsiness: () => {
+    const state = get();
+    const vehicle = state.vehicles[0];
+    const driver = state.drivers.find(d => d.id === 'DRV-07') || state.drivers[0];
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     return {
       monitoringState: {
-        ...s.monitoringState,
-        status: 'drowsiness_alert',
-        eyesClosed: true,
-        eyesClosedStart: Date.now(),
-        drowsinessScore: 0.95,
+        ...state.monitoringState,
+        monitoringState: 'alarm_active',
+        eyesOpen: false,
+        leftEyeOpen: false,
+        rightEyeOpen: false,
+        eyesClosedAt: Date.now() - 5000,
+        closureDuration: 5000,
+        drowsinessDetected: true,
+        buzzerActive: true,
         faceDetected: true,
+        attention: 'absent',
       },
       driverAlerts: [{
         id: `DA-${Date.now()}`,
         driverId: driver.id,
         vehicleId: vehicle.id,
         type: 'drowsiness' as const,
-        severity: 'high' as const,
+        severity: 'critical' as const,
         message: 'Driver drowsiness detected - eyes closed for 5 seconds',
         time: now,
         acknowledged: false,
-      }, ...s.driverAlerts],
+      }, ...state.driverAlerts],
       activityLogs: [{
         id: `LOG-${Date.now()}`,
         type: 'alert',
         message: `Drowsiness detected for ${driver.fullName} in ${vehicle.id}`,
         time: now,
         icon: 'alert-triangle',
-        severity: 'warning' as const,
-      }, ...s.activityLogs],
+        severity: 'danger' as const,
+      }, ...state.activityLogs],
     };
-  }),
+  },
 }));

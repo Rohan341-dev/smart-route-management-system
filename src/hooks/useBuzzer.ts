@@ -2,11 +2,10 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 
 export function useBuzzer() {
   const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
   const intervalRef = useRef<number | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const isPlayingRef = useRef(false);
 
   const initAudio = useCallback(async () => {
     try {
@@ -23,7 +22,7 @@ export function useBuzzer() {
   }, []);
 
   const playBeep = useCallback((frequency = 880, duration = 200) => {
-    if (!audioContextRef.current) return;
+    if (!audioContextRef.current || audioContextRef.current.state === 'closed') return;
 
     const ctx = audioContextRef.current;
     const oscillator = ctx.createOscillator();
@@ -43,20 +42,29 @@ export function useBuzzer() {
   }, []);
 
   const startBuzzer = useCallback(() => {
-    if (isPlaying) return;
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
     setIsPlaying(true);
-    let count = 0;
+
     const beepCycle = () => {
-      count++;
+      if (!isPlayingRef.current) return;
       playBeep(880, 200);
-      setTimeout(() => playBeep(660, 200), 250);
-      setTimeout(() => playBeep(880, 200), 500);
+      setTimeout(() => {
+        if (!isPlayingRef.current) return;
+        playBeep(660, 200);
+      }, 250);
+      setTimeout(() => {
+        if (!isPlayingRef.current) return;
+        playBeep(880, 200);
+      }, 500);
     };
+
     beepCycle();
     intervalRef.current = window.setInterval(beepCycle, 1500);
-  }, [isPlaying, playBeep]);
+  }, [playBeep]);
 
   const stopBuzzer = useCallback(() => {
+    isPlayingRef.current = false;
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
@@ -66,9 +74,10 @@ export function useBuzzer() {
 
   useEffect(() => {
     return () => {
+      isPlayingRef.current = false;
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (audioContextRef.current) {
-        audioContextRef.current.close();
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close().catch(() => {});
       }
     };
   }, []);

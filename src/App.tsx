@@ -87,7 +87,7 @@ function AdminApp() {
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col overflow-hidden ${
+      <div className={`flex-1 flex flex-col min-w-0 ${
         !isMobile && (sidebarOpen ? 'md:ml-64' : 'md:ml-20')
       } ${activeSOS ? 'mt-12' : ''} transition-all duration-300`}>
         <Header />

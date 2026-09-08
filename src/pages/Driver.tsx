@@ -6,15 +6,18 @@ import { useWebRTC } from '../hooks/useWebRTC';
 import { useStore } from '../store/useStore';
 import {
   Camera, MapPin, Volume2, Brain, Shield, AlertTriangle,
-  Phone, PhoneOff, Eye, EyeOff, CheckCircle, XCircle,
+  Phone, Eye, EyeOff, CheckCircle,
   Navigation, Clock, Wifi, WifiOff, Zap, Video
 } from 'lucide-react';
 
 type PermissionStep = 'camera' | 'location' | 'sound' | 'ready';
 type DriverScreen = 'permissions' | 'monitoring' | 'drowsiness' | 'sos' | 'offline';
 
+const DROWSINESS_THRESHOLD_MS = 5000;
+const RESPONSE_TIMEOUT_MS = 30000;
+
 export default function Driver() {
-  const { vehicles, triggerDrowsiness, triggerBuzzer, driverResponds, triggerSOS } = useStore();
+  const { vehicles, startEyeClosure, updateEyeState, resetEyeClosure, confirmDrowsiness, startAlarm, stopAlarm, escalateToSOS, triggerSOS } = useStore();
   const faceDetection = useFaceDetection();
   const gps = useGPS();
   const buzzer = useBuzzer();
@@ -25,16 +28,20 @@ export default function Driver() {
   const [cameraPermission, setCameraPermission] = useState(false);
   const [locationPermission, setLocationPermission] = useState(false);
   const [soundPermission, setSoundPermission] = useState(false);
-  const [drowsinessTimer, setDrowsinessTimer] = useState(0);
+  const [closureElapsed, setClosureElapsed] = useState(0);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [selectedVehicle, setSelectedVehicle] = useState(vehicles[0]);
-  const [selectedDriver, setSelectedDriver] = useState<string>('DRV-07');
-  const drowsinessTimerRef = useRef<number | null>(null);
+  const [selectedDriver] = useState<string>('DRV-07');
+  const closureTimerRef = useRef<number | null>(null);
+  const responseTimerRef = useRef<number | null>(null);
+  const eyesClosedAtRef = useRef<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gpsSendIntervalRef = useRef<number | null>(null);
+  const responseDeadlineRef = useRef<number | null>(null);
 
   const driver = useStore(s => s.drivers.find(d => d.id === selectedDriver));
+  const monitoringState = useStore(s => s.monitoringState);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -60,7 +67,6 @@ export default function Driver() {
 
   const startCamera = useCallback(async () => {
     try {
-      // Just test camera permission during setup
       const testStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user' },
       });
@@ -68,8 +74,7 @@ export default function Driver() {
       setCameraPermission(true);
       setPermissionStep('location');
       return true;
-    } catch (err: any) {
-      console.error('Camera permission denied:', err);
+    } catch {
       return false;
     }
   }, []);
@@ -101,7 +106,6 @@ export default function Driver() {
         });
       }
     }, 3000);
-    // Start camera + face detection after monitoring screen renders
     setTimeout(async () => {
       if (videoRef.current && canvasRef.current) {
         try {
@@ -110,54 +114,110 @@ export default function Driver() {
             const stream = faceDetection.getStream();
             if (stream) webrtc.startAsDriver(stream);
           }, 2000);
-        } catch (e) {
-          console.error('Face detection failed:', e);
+        } catch {
+          // Face detection failed
         }
       }
     }, 500);
   }, [gps, selectedDriver, selectedVehicle.id, faceDetection, webrtc]);
 
   useEffect(() => {
-    if (faceDetection.faceDetected && !faceDetection.eyesOpen && screen === 'monitoring') {
-      if (!drowsinessTimerRef.current) {
-        setDrowsinessTimer(0);
-        drowsinessTimerRef.current = window.setInterval(() => {
-          setDrowsinessTimer(prev => {
-            const next = prev + 1;
-            if (next >= 5) {
-              if (drowsinessTimerRef.current) clearInterval(drowsinessTimerRef.current);
-              drowsinessTimerRef.current = null;
-              setScreen('drowsiness');
-              buzzer.startBuzzer();
-              triggerDrowsiness();
-              return 5;
-            }
-            return next;
-          });
-        }, 1000);
+    if (screen !== 'monitoring') return;
+    if (!faceDetection.faceDetected) {
+      if (eyesClosedAtRef.current) {
+        eyesClosedAtRef.current = null;
+        setClosureElapsed(0);
+        if (closureTimerRef.current) cancelAnimationFrame(closureTimerRef.current);
+        closureTimerRef.current = null;
+        resetEyeClosure();
       }
-    } else if (faceDetection.eyesOpen && screen === 'monitoring') {
-      if (drowsinessTimerRef.current) {
-        clearInterval(drowsinessTimerRef.current);
-        drowsinessTimerRef.current = null;
-      }
-      setDrowsinessTimer(0);
+      return;
     }
-  }, [faceDetection.eyesOpen, faceDetection.faceDetected, screen, buzzer, triggerDrowsiness]);
+
+    if (!faceDetection.leftEyeOpen || !faceDetection.rightEyeOpen) {
+      if (!eyesClosedAtRef.current) {
+        eyesClosedAtRef.current = Date.now();
+        startEyeClosure();
+
+        const tick = () => {
+          if (!eyesClosedAtRef.current) return;
+          const elapsed = Date.now() - eyesClosedAtRef.current;
+          setClosureElapsed(elapsed);
+
+          if (elapsed >= DROWSINESS_THRESHOLD_MS) {
+            confirmDrowsiness();
+            setTimeout(() => {
+              startAlarm();
+              buzzer.startBuzzer();
+              setScreen('drowsiness');
+            }, 100);
+            return;
+          }
+          closureTimerRef.current = requestAnimationFrame(tick);
+        };
+        closureTimerRef.current = requestAnimationFrame(tick);
+      }
+    } else {
+      if (eyesClosedAtRef.current) {
+        eyesClosedAtRef.current = null;
+        setClosureElapsed(0);
+        if (closureTimerRef.current) cancelAnimationFrame(closureTimerRef.current);
+        closureTimerRef.current = null;
+        resetEyeClosure();
+      }
+    }
+  }, [faceDetection.leftEyeOpen, faceDetection.rightEyeOpen, faceDetection.faceDetected, screen, startEyeClosure, resetEyeClosure, confirmDrowsiness, startAlarm, buzzer]);
+
+  useEffect(() => {
+    if (screen !== 'drowsiness') {
+      if (responseTimerRef.current) {
+        clearTimeout(responseTimerRef.current);
+        responseTimerRef.current = null;
+      }
+      responseDeadlineRef.current = null;
+      return;
+    }
+
+    responseDeadlineRef.current = Date.now() + RESPONSE_TIMEOUT_MS;
+    responseTimerRef.current = window.setTimeout(() => {
+      buzzer.stopBuzzer();
+      escalateToSOS();
+      setScreen('sos');
+    }, RESPONSE_TIMEOUT_MS);
+
+    return () => {
+      if (responseTimerRef.current) {
+        clearTimeout(responseTimerRef.current);
+        responseTimerRef.current = null;
+      }
+    };
+  }, [screen, buzzer, escalateToSOS]);
 
   const handleDriverAwake = useCallback(() => {
     buzzer.stopBuzzer();
+    if (responseTimerRef.current) {
+      clearTimeout(responseTimerRef.current);
+      responseTimerRef.current = null;
+    }
+    eyesClosedAtRef.current = null;
+    setClosureElapsed(0);
+    if (closureTimerRef.current) {
+      cancelAnimationFrame(closureTimerRef.current);
+      closureTimerRef.current = null;
+    }
+    stopAlarm();
     setScreen('monitoring');
-    setDrowsinessTimer(0);
-    driverResponds();
-  }, [buzzer, driverResponds]);
+  }, [buzzer, stopAlarm]);
 
   const handleNoResponse = useCallback(() => {
     buzzer.stopBuzzer();
+    if (responseTimerRef.current) {
+      clearTimeout(responseTimerRef.current);
+      responseTimerRef.current = null;
+    }
+    escalateToSOS();
     setScreen('sos');
-    triggerSOS();
-    triggerBuzzer();
-  }, [buzzer, triggerSOS, triggerBuzzer]);
+  }, [buzzer, escalateToSOS]);
 
   useEffect(() => {
     if (screen === 'sos' && gps.latitude !== 0) {
@@ -178,6 +238,10 @@ export default function Driver() {
     gps.stopTracking();
     faceDetection.stopDetection();
     if (gpsSendIntervalRef.current) clearInterval(gpsSendIntervalRef.current);
+    if (closureTimerRef.current) cancelAnimationFrame(closureTimerRef.current);
+    if (responseTimerRef.current) clearTimeout(responseTimerRef.current);
+    eyesClosedAtRef.current = null;
+    setClosureElapsed(0);
     setScreen('permissions');
     setCameraPermission(false);
     setLocationPermission(false);
@@ -191,11 +255,16 @@ export default function Driver() {
     };
   }, []);
 
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
+  const formatTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
   };
+
+  const closureProgress = Math.min(closureElapsed / DROWSINESS_THRESHOLD_MS, 1);
+  const closureSeconds = Math.floor(closureElapsed / 1000);
+  const bothEyesClosed = !faceDetection.leftEyeOpen && !faceDetection.rightEyeOpen;
 
   return (
     <div className="min-h-screen bg-navy-950 text-white flex flex-col" style={{ maxWidth: '430px', margin: '0 auto' }}>
@@ -327,7 +396,6 @@ export default function Driver() {
               }}
             />
 
-            {/* Loading overlay */}
             {faceDetection.isModelLoading && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-navy-900/90">
                 <div className="w-10 h-10 border-2 border-electric-500 border-t-transparent rounded-full animate-spin mb-2"></div>
@@ -336,14 +404,12 @@ export default function Driver() {
               </div>
             )}
 
-            {/* Error overlay */}
             {faceDetection.error && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-900/90 p-4">
                 <p className="text-xs text-red-400 font-bold text-center">{faceDetection.error}</p>
               </div>
             )}
 
-            {/* Status badges */}
             <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
               <span className={`w-1.5 h-1.5 rounded-full ${faceDetection.faceDetected ? 'bg-green-400' : 'bg-red-400'}`}></span>
               <span className="text-[9px]">{faceDetection.faceDetected ? 'Face Detected' : 'No Face'}</span>
@@ -353,7 +419,6 @@ export default function Driver() {
               <span className="text-[9px]">{faceDetection.eyesOpen ? 'OPEN' : 'CLOSED'}</span>
             </div>
 
-            {/* Camera feed label */}
             {faceDetection.isModelReady && (
               <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse"></span>
@@ -363,22 +428,58 @@ export default function Driver() {
           </div>
 
           <div className="flex-1 p-4 space-y-3">
-            <div className="bg-green-600/20 border border-green-600/30 rounded-xl p-4 text-center">
-              <p className="text-green-400 text-lg font-black">DRIVER SAFE</p>
+            {bothEyesClosed && faceDetection.faceDetected ? (
+              <div className="bg-orange-600/20 border border-orange-600/30 rounded-xl p-4 text-center">
+                <p className="text-orange-400 text-lg font-black">POSSIBLE DROWSINESS</p>
+                <p className="text-xs text-orange-300 mt-1">Eyes closed — monitoring timer</p>
+              </div>
+            ) : (
+              <div className="bg-green-600/20 border border-green-600/30 rounded-xl p-4 text-center">
+                <p className="text-green-400 text-lg font-black">DRIVER SAFE</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-navy-800/50 rounded-xl p-2 text-center">
+                <Eye className={`w-4 h-4 mx-auto mb-0.5 ${faceDetection.leftEyeOpen ? 'text-green-400' : 'text-red-400'}`} />
+                <p className="text-[9px] text-gray-400">Left Eye</p>
+                <p className={`text-[10px] font-bold ${faceDetection.leftEyeOpen ? 'text-green-400' : 'text-red-400'}`}>
+                  {faceDetection.leftEyeOpen ? 'OPEN' : 'CLOSED'}
+                </p>
+              </div>
+              <div className="bg-navy-800/50 rounded-xl p-2 text-center">
+                <Eye className={`w-4 h-4 mx-auto mb-0.5 ${faceDetection.rightEyeOpen ? 'text-green-400' : 'text-red-400'}`} />
+                <p className="text-[9px] text-gray-400">Right Eye</p>
+                <p className={`text-[10px] font-bold ${faceDetection.rightEyeOpen ? 'text-green-400' : 'text-red-400'}`}>
+                  {faceDetection.rightEyeOpen ? 'OPEN' : 'CLOSED'}
+                </p>
+              </div>
+              <div className="bg-navy-800/50 rounded-xl p-2 text-center">
+                <Navigation className="w-4 h-4 mx-auto mb-0.5 text-electric-400" />
+                <p className="text-[9px] text-gray-400">Speed</p>
+                <p className="text-[10px] font-bold">{Math.round(gps.speed * 3.6)} km/h</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-navy-800/50 rounded-xl p-3 text-center">
-                <Eye className={`w-5 h-5 mx-auto mb-1 ${faceDetection.eyesOpen ? 'text-green-400' : 'text-red-400'}`} />
-                <p className="text-[10px] text-gray-400">Eyes</p>
-                <p className="text-xs font-bold">{faceDetection.eyesOpen ? 'OPEN' : 'CLOSED'}</p>
+            {bothEyesClosed && faceDetection.faceDetected && (
+              <div className="bg-navy-800/50 rounded-xl p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] text-gray-400">CONTINUOUS CLOSURE TIMER</p>
+                  <p className="text-xs font-mono font-bold text-orange-400">
+                    {formatTime(closureElapsed)} / 00:05
+                  </p>
+                </div>
+                <div className="w-full h-2 bg-navy-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-100 ${
+                      closureProgress >= 1 ? 'bg-red-500' : 'bg-orange-500'
+                    }`}
+                    style={{ width: `${closureProgress * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 text-center">{closureSeconds} / 5 Seconds</p>
               </div>
-              <div className="bg-navy-800/50 rounded-xl p-3 text-center">
-                <Navigation className="w-5 h-5 mx-auto mb-1 text-electric-400" />
-                <p className="text-[10px] text-gray-400">Speed</p>
-                <p className="text-xs font-bold">{Math.round(gps.speed * 3.6)} km/h</p>
-              </div>
-            </div>
+            )}
 
             <div className="bg-navy-800/50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400">GPS Location</p>
@@ -389,8 +490,6 @@ export default function Driver() {
             <div className="bg-navy-800/50 rounded-xl p-3">
               <p className="text-[10px] text-gray-400">Current Route</p>
               <p className="text-xs font-bold">{selectedVehicle.routeName || 'Route A'}</p>
-              <p className="text-[10px] text-gray-400">Next: Maitidevi</p>
-              <p className="text-[10px] text-gray-400">ETA: 08:35 AM</p>
             </div>
 
             <button
@@ -413,12 +512,25 @@ export default function Driver() {
             <AlertTriangle className="w-10 h-10 text-red-400" />
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-black text-red-400">WARNING</h2>
-            <p className="text-sm text-red-300 mt-1">DROWSINESS DETECTED</p>
+            <h2 className="text-xl font-black text-red-400">DROWSINESS DETECTED</h2>
+            <p className="text-sm text-red-300 mt-1">Eyes closed for 5 continuous seconds</p>
           </div>
           <div className="bg-red-900/30 rounded-xl p-4 text-center w-full">
-            <p className="text-xs text-gray-400">EYES CLOSED</p>
-            <p className="text-3xl font-mono font-bold text-red-400">{formatTime(drowsinessTimer)}</p>
+            <p className="text-xs text-gray-400">EYES CLOSED FOR</p>
+            <p className="text-3xl font-mono font-bold text-red-400">05 SECONDS</p>
+          </div>
+          <div className="w-full bg-navy-800/50 rounded-xl p-3">
+            <p className="text-[10px] text-gray-400 mb-2">ARE YOU OKAY?</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-1">
+                <Eye className="w-3 h-3 text-green-400" />
+                <span className="text-[10px] text-green-400">Left: {faceDetection.leftEyeOpen ? 'Open' : 'Closed'}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Eye className="w-3 h-3 text-green-400" />
+                <span className="text-[10px] text-green-400">Right: {faceDetection.rightEyeOpen ? 'Open' : 'Closed'}</span>
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2 text-red-300">
             <Volume2 className="w-5 h-5 animate-pulse" />
@@ -426,15 +538,15 @@ export default function Driver() {
           </div>
           <button
             onClick={handleDriverAwake}
-            className="btn-primary w-full py-4 text-sm font-bold"
+            className="w-full py-4 bg-green-600 hover:bg-green-700 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
           >
-            I'M AWAKE
+            <CheckCircle className="w-5 h-5" /> I AM ALERT
           </button>
           <button
             onClick={handleNoResponse}
-            className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+            className="w-full py-3 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors"
           >
-            <AlertTriangle className="w-4 h-4" /> SOS
+            <AlertTriangle className="w-4 h-4" /> EMERGENCY
           </button>
         </div>
       )}
@@ -454,12 +566,20 @@ export default function Driver() {
               <p className="text-xs font-bold">{selectedVehicle.id}</p>
             </div>
             <div className="bg-red-900/30 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400">Location</p>
-              <p className="text-xs font-bold">{gps.latitude.toFixed(6)}, {gps.longitude.toFixed(6)}</p>
+              <p className="text-[10px] text-gray-400">Driver</p>
+              <p className="text-xs font-bold">{driver?.fullName || 'Unknown'}</p>
             </div>
             <div className="bg-red-900/30 rounded-xl p-3">
-              <p className="text-[10px] text-gray-400">Speed</p>
-              <p className="text-xs font-bold">{Math.round(gps.speed * 3.6)} km/h</p>
+              <p className="text-[10px] text-gray-400">Incident</p>
+              <p className="text-xs font-bold">Driver Eyes Closed for 5 Seconds</p>
+            </div>
+            <div className="bg-red-900/30 rounded-xl p-3">
+              <p className="text-[10px] text-gray-400">GPS Location</p>
+              <p className="text-xs font-bold">{gps.latitude.toFixed(4)}° N, {gps.longitude.toFixed(4)}° E</p>
+            </div>
+            <div className="bg-red-900/30 rounded-xl p-3">
+              <p className="text-[10px] text-gray-400">Students On Board</p>
+              <p className="text-xs font-bold">{selectedVehicle.currentStudents}</p>
             </div>
           </div>
           <div className="w-full space-y-2">

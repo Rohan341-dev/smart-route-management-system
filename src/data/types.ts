@@ -10,6 +10,17 @@ export type TripStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 export type DriverEyeStatus = 'open' | 'closed' | 'squinting';
 export type DriverAttention = 'normal' | 'distracted' | 'absent';
 
+export type DriverMonitoringStateType =
+  | 'initializing'
+  | 'no_face'
+  | 'monitoring'
+  | 'eyes_closed'
+  | 'drowsiness_confirmed'
+  | 'alarm_active'
+  | 'awaiting_response'
+  | 'sos_active'
+  | 'resolved';
+
 export interface Vehicle {
   id: string;
   registrationNumber: string;
@@ -208,6 +219,8 @@ export interface DriverMonitoringState {
   isMonitoring: boolean;
   faceDetected: boolean;
   eyesOpen: boolean;
+  leftEyeOpen: boolean;
+  rightEyeOpen: boolean;
   eyeClosureDuration: number;
   blinkFrequency: number;
   headPosition: string;
@@ -216,6 +229,10 @@ export interface DriverMonitoringState {
   buzzerActive: boolean;
   driverResponded: boolean | null;
   monitoringStartTime: number;
+  monitoringState: DriverMonitoringStateType;
+  eyesClosedAt: number | null;
+  closureDuration: number;
+  responseDeadline: number | null;
 }
 
 export interface AttendanceRecord {
