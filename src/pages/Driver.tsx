@@ -55,6 +55,14 @@ export default function Driver() {
     };
   }, []);
 
+  // Auto-start trip once all permissions are granted
+  useEffect(() => {
+    if (cameraPermission && locationPermission && soundPermission && screen === 'permissions') {
+      const t = setTimeout(() => startTrip(), 500);
+      return () => clearTimeout(t);
+    }
+  }, [cameraPermission, locationPermission, soundPermission, screen]);
+
   useEffect(() => {
     if (gps.isActive && gps.latitude !== 0) {
       useStore.getState().updateDriverGPS(selectedDriver, selectedVehicle.id, {
@@ -71,6 +79,18 @@ export default function Driver() {
     setIsRequesting(true);
 
     try {
+      // Check if camera was previously denied via Permissions API
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const camStatus = await navigator.permissions.query({ name: 'camera' as PermissionName });
+          if (camStatus.state === 'denied') {
+            setCameraError('Camera was previously blocked. Tap the lock/info icon in your address bar → Camera → Allow, then reload.');
+            setIsRequesting(false);
+            return;
+          }
+        } catch {}
+      }
+
       // Camera
       const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach(t => t.stop());
@@ -89,7 +109,7 @@ export default function Driver() {
       setIsRequesting(false);
       let msg = 'Permission denied. Please allow access and try again.';
       if (err.name === 'NotAllowedError') {
-        msg = 'Permission denied. Tap "Allow" in the browser prompt when it appears.';
+        msg = 'Camera blocked. Tap the lock icon (🔒) in your address bar → Camera → Allow, then reload this page.';
       } else if (err.name === 'NotFoundError') {
         msg = 'No camera found on this device.';
       } else if (err.name === 'NotReadableError') {
@@ -569,55 +589,20 @@ export default function Driver() {
             </button>
 
             {showDiagnostics && (
-              <div className="bg-navy-900/80 border border-white/10 rounded-xl p-3 space-y-2">
-                <p className="text-[10px] text-electric-400 font-bold mb-2">DASHCAM DIAGNOSTICS</p>
-                <div className="grid grid-cols-2 gap-2">
+              <div className="bg-navy-900/80 border border-white/10 rounded-xl p-3 space-y-3">
+                <p className="text-[10px] text-electric-400 font-bold">DASHCAM EAR DIAGNOSTICS</p>
+
+                <div className="grid grid-cols-3 gap-2">
                   <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
                     <p className="text-[9px] text-gray-400">Camera</p>
-                    <p className={`text-[10px] font-bold ${faceDetection.cameraState === 'active' ? 'text-green-400' : faceDetection.cameraState === 'connecting' ? 'text-amber-400' : 'text-red-400'}`}>
-                      {faceDetection.cameraState === 'active' ? 'CONNECTED' : faceDetection.cameraState === 'connecting' ? 'CONNECTING' : 'DISCONNECTED'}
+                    <p className={`text-[10px] font-bold ${faceDetection.cameraState === 'active' ? 'text-green-400' : 'text-red-400'}`}>
+                      {faceDetection.cameraState === 'active' ? 'ACTIVE' : faceDetection.cameraState}
                     </p>
                   </div>
                   <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
                     <p className="text-[9px] text-gray-400">Face</p>
                     <p className={`text-[10px] font-bold ${faceDetection.faceDetected ? 'text-green-400' : 'text-red-400'}`}>
-                      {faceDetection.faceDetected ? 'DETECTED' : 'NOT DETECTED'}
-                    </p>
-                  </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Left Eye</p>
-                    <p className={`text-[10px] font-bold ${eyeStateColor(faceDetection.leftEAR)}`}>
-                      {faceDetection.leftEyeOpen ? 'OPEN' : 'CLOSED'}
-                    </p>
-                  </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Right Eye</p>
-                    <p className={`text-[10px] font-bold ${eyeStateColor(faceDetection.rightEAR)}`}>
-                      {faceDetection.rightEyeOpen ? 'OPEN' : 'CLOSED'}
-                    </p>
-                  </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Left EAR</p>
-                    <p className={`text-[10px] font-mono font-bold ${eyeStateColor(faceDetection.leftEAR)}`}>
-                      {faceDetection.leftEAR.toFixed(3)}
-                    </p>
-                  </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Right EAR</p>
-                    <p className={`text-[10px] font-mono font-bold ${eyeStateColor(faceDetection.rightEAR)}`}>
-                      {faceDetection.rightEAR.toFixed(3)}
-                    </p>
-                  </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Avg EAR</p>
-                    <p className={`text-[10px] font-mono font-bold ${eyeStateColor(faceDetection.avgEAR)}`}>
-                      {faceDetection.avgEAR.toFixed(3)}
-                    </p>
-                  </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Threshold</p>
-                    <p className="text-[10px] font-mono font-bold text-gray-300">
-                      {faceDetection.openThreshold.toFixed(3)} / {faceDetection.closedThreshold.toFixed(3)}
+                      {faceDetection.faceDetected ? 'DETECTED' : 'MISSING'}
                     </p>
                   </div>
                   <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
@@ -626,21 +611,98 @@ export default function Driver() {
                       {faceDetection.isCalibrated ? 'YES' : `${Math.round(faceDetection.calibrationProgress * 100)}%`}
                     </p>
                   </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">FPS</p>
-                    <p className="text-[10px] font-mono font-bold text-gray-300">{faceDetection.fps}</p>
+                </div>
+
+                {/* LEFT EYE */}
+                <div className={`rounded-xl p-3 border ${!faceDetection.leftEyeOpen ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold text-white">LEFT EYE</p>
+                    <p className={`text-[11px] font-black ${!faceDetection.leftEyeOpen ? 'text-red-400' : 'text-green-400'}`}>
+                      {faceDetection.leftEyeState === 'unknown' ? 'UNKNOWN' : !faceDetection.leftEyeOpen ? 'CLOSED' : 'OPEN'}
+                    </p>
                   </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Confidence</p>
-                    <p className="text-[10px] font-mono font-bold text-gray-300">{faceDetection.faceConfidence}%</p>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] text-gray-400 w-8">EAR:</span>
+                    <span className={`text-sm font-mono font-bold ${!faceDetection.leftEyeOpen ? 'text-red-400' : 'text-green-400'}`}>
+                      {faceDetection.leftEAR.toFixed(3)}
+                    </span>
                   </div>
-                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2">
-                    <p className="text-[9px] text-gray-400">Closed Frames</p>
-                    <p className={`text-[10px] font-mono font-bold ${faceDetection.consecutiveClosedFrames > 0 ? 'text-amber-400' : 'text-gray-300'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] text-gray-400 w-8">Thresh:</span>
+                    <span className="text-sm font-mono font-bold text-amber-400">
+                      {faceDetection.closedThreshold.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 dark:bg-navy-700 bg-surface-200 rounded-full overflow-hidden relative">
+                    <div
+                      className={`h-full rounded-full transition-all duration-75 ${!faceDetection.leftEyeOpen ? 'bg-red-500' : 'bg-green-500'}`}
+                      style={{ width: `${Math.min(faceDetection.leftEAR / 0.5, 1) * 100}%` }}
+                    />
+                    <div
+                      className="absolute top-0 h-full w-0.5 bg-amber-400"
+                      style={{ left: `${Math.min(faceDetection.closedThreshold / 0.5, 1) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-[8px] text-gray-500 mt-0.5">
+                    EAR {faceDetection.leftEAR.toFixed(3)} {faceDetection.leftEAR < faceDetection.closedThreshold ? '<' : '>'} Threshold {faceDetection.closedThreshold.toFixed(3)} → {!faceDetection.leftEyeOpen ? 'CLOSED' : 'OPEN'}
+                  </p>
+                </div>
+
+                {/* RIGHT EYE */}
+                <div className={`rounded-xl p-3 border ${!faceDetection.rightEyeOpen ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold text-white">RIGHT EYE</p>
+                    <p className={`text-[11px] font-black ${!faceDetection.rightEyeOpen ? 'text-red-400' : 'text-green-400'}`}>
+                      {faceDetection.rightEyeState === 'unknown' ? 'UNKNOWN' : !faceDetection.rightEyeOpen ? 'CLOSED' : 'OPEN'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] text-gray-400 w-8">EAR:</span>
+                    <span className={`text-sm font-mono font-bold ${!faceDetection.rightEyeOpen ? 'text-red-400' : 'text-green-400'}`}>
+                      {faceDetection.rightEAR.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[9px] text-gray-400 w-8">Thresh:</span>
+                    <span className="text-sm font-mono font-bold text-amber-400">
+                      {faceDetection.closedThreshold.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 dark:bg-navy-700 bg-surface-200 rounded-full overflow-hidden relative">
+                    <div
+                      className={`h-full rounded-full transition-all duration-75 ${!faceDetection.rightEyeOpen ? 'bg-red-500' : 'bg-green-500'}`}
+                      style={{ width: `${Math.min(faceDetection.rightEAR / 0.5, 1) * 100}%` }}
+                    />
+                    <div
+                      className="absolute top-0 h-full w-0.5 bg-amber-400"
+                      style={{ left: `${Math.min(faceDetection.closedThreshold / 0.5, 1) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-[8px] text-gray-500 mt-0.5">
+                    EAR {faceDetection.rightEAR.toFixed(3)} {faceDetection.rightEAR < faceDetection.closedThreshold ? '<' : '>'} Threshold {faceDetection.closedThreshold.toFixed(3)} → {!faceDetection.rightEyeOpen ? 'CLOSED' : 'OPEN'}
+                  </p>
+                </div>
+
+                {/* SUMMARY */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2 text-center">
+                    <p className="text-[9px] text-gray-400">Avg EAR</p>
+                    <p className={`text-xs font-mono font-bold ${faceDetection.avgEAR < faceDetection.closedThreshold ? 'text-red-400' : 'text-green-400'}`}>
+                      {faceDetection.avgEAR.toFixed(3)}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2 text-center">
+                    <p className="text-[9px] text-gray-400">Consec Closed</p>
+                    <p className={`text-xs font-mono font-bold ${faceDetection.consecutiveClosedFrames > 0 ? 'text-red-400' : 'text-gray-300'}`}>
                       {faceDetection.consecutiveClosedFrames}
                     </p>
                   </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2 text-center">
+                    <p className="text-[9px] text-gray-400">FPS</p>
+                    <p className="text-xs font-mono font-bold text-gray-300">{faceDetection.fps}</p>
+                  </div>
                 </div>
+
                 <button
                   onClick={faceDetection.recalibrate}
                   className="w-full py-2 bg-electric-600/20 hover:bg-electric-600/30 rounded-lg text-[10px] text-electric-400 font-bold transition-colors"

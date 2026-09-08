@@ -19,6 +19,4 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
 
 class QRScanSerializer(serializers.Serializer):
     qr_data = serializers.CharField()
-    bus_id = serializers.IntegerField()
-    driver_id = serializers.IntegerField()
     action = serializers.ChoiceField(choices=['pick', 'drop'])

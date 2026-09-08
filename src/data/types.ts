@@ -232,7 +232,7 @@ export interface DashboardStats {
   routeDeviations: number;
 }
 
-export type EyeState = 'open' | 'closing' | 'closed';
+export type EyeState = 'open' | 'closing' | 'closed' | 'unknown';
 
 export interface SmartBusQRPayload {
   type: 'SMARTBUS_STUDENT';

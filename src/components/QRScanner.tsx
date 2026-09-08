@@ -79,22 +79,30 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         setCameraStatus('active');
       }
     } catch (err: any) {
-      console.error('QR Scanner error:', err);
+      console.error('QR Scanner error:', err.name, err.message, err);
       let errorMsg = 'Unable to start QR scanner. Try again.';
       let status: CameraStatus = 'error';
 
-      if (err.name === 'NotAllowedError' || err.message?.includes('Permission') || err.message?.includes('permission')) {
-        errorMsg = 'Camera permission denied. Please allow camera access and try again.';
+      const name = err.name || '';
+      const msg = err.message || '';
+
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || msg.includes('Permission') || msg.includes('permission') || msg.includes('denied')) {
+        errorMsg = 'Camera permission denied. Tap the lock icon (🔒) in address bar → Camera → Allow, then reload.';
         status = 'denied';
-      } else if (err.name === 'NotFoundError' || err.message?.includes('not found') || err.message?.includes('Requested device not found')) {
+      } else if (name === 'NotFoundError' || msg.includes('not found') || msg.includes('Requested device not found') || msg.includes('DevicesNotFound')) {
         errorMsg = 'No camera found on this device.';
         status = 'unavailable';
-      } else if (err.name === 'NotReadableError') {
+      } else if (name === 'NotReadableError' || msg.includes('Could not start video source')) {
         errorMsg = 'Camera is in use by another application.';
         status = 'error';
-      } else if (err.message?.includes('secure context') || err.message?.includes('HTTPS')) {
+      } else if (msg.includes('secure context') || msg.includes('HTTPS') || msg.includes('insecure')) {
         errorMsg = 'Camera requires HTTPS. Open this page via HTTPS.';
         status = 'error';
+      } else if (name === 'AbortError' || msg.includes('aborted')) {
+        errorMsg = 'Camera start was cancelled. Tap Start to try again.';
+        status = 'error';
+      } else {
+        errorMsg = `Scanner error: ${name} — ${msg}`;
       }
 
       if (mountedRef.current) {

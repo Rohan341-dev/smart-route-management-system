@@ -129,6 +129,7 @@ export default function DriverMonitoring() {
   };
 
   const eyeStateLabel = (ear: number) => {
+    if (monitoringState.eyeState === 'unknown') return 'UNKNOWN';
     if (ear >= monitoringState.openThreshold) return 'OPEN';
     if (ear <= monitoringState.closedThreshold) return 'CLOSED';
     return 'CLOSING';

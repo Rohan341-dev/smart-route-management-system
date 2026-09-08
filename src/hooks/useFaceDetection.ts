@@ -1,7 +1,7 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 import * as faceapi from 'face-api.js';
 
-export type EyeState = 'open' | 'closing' | 'closed';
+export type EyeState = 'open' | 'closing' | 'closed' | 'unknown';
 export type CameraState = 'idle' | 'connecting' | 'active' | 'error' | 'stopped';
 
 export interface FaceDetectionState {
@@ -37,8 +37,6 @@ export interface FaceDetectionState {
 const MODEL_URL = '/models';
 const CALIBRATION_FRAMES = 40;
 const DETECTION_INTERVAL_MS = 60;
-const CLOSED_CONFIRM_FRAMES = 3;
-const OPEN_CONFIRM_FRAMES = 2;
 const EMA_ALPHA = 0.45;
 const NO_FACE_GRACE_FRAMES = 8;
 
@@ -53,30 +51,26 @@ export function useFaceDetection() {
 
   const calibrationSamplesRef = useRef<number[]>([]);
   const baselineEARRef = useRef(0);
-  const openThresholdRef = useRef(0.22);
   const closedThresholdRef = useRef(0.16);
 
   const leftEARHistoryRef = useRef<number[]>([]);
   const rightEARHistoryRef = useRef<number[]>([]);
 
-  const leftClosedCountRef = useRef(0);
-  const rightClosedCountRef = useRef(0);
-  const leftOpenCountRef = useRef(0);
-  const rightOpenCountRef = useRef(0);
   const consecutiveClosedRef = useRef(0);
   const noFaceGraceRef = useRef(0);
   const lastBlinkTimeRef = useRef(0);
   const blinkCountRef = useRef(0);
   const modelsLoadedRef = useRef(false);
+  const logCounterRef = useRef(0);
 
   const [state, setState] = useState<FaceDetectionState>({
     faceDetected: false,
     eyesOpen: true,
     leftEyeOpen: true,
     rightEyeOpen: true,
-    leftEyeState: 'open',
-    rightEyeState: 'open',
-    eyeState: 'open',
+    leftEyeState: 'unknown',
+    rightEyeState: 'unknown',
+    eyeState: 'unknown',
     leftEAR: 0,
     rightEAR: 0,
     avgEAR: 0,
@@ -126,7 +120,6 @@ export function useFaceDetection() {
 
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (!detections) {
@@ -139,9 +132,9 @@ export function useFaceDetection() {
             eyesOpen: true,
             leftEyeOpen: true,
             rightEyeOpen: true,
-            leftEyeState: 'open',
-            rightEyeState: 'open',
-            eyeState: 'open',
+            leftEyeState: 'unknown',
+            rightEyeState: 'unknown',
+            eyeState: 'unknown',
             leftEAR: 0,
             rightEAR: 0,
             avgEAR: 0,
@@ -164,7 +157,6 @@ export function useFaceDetection() {
 
       const rawLeftEAR = calculateEAR(leftEye);
       const rawRightEAR = calculateEAR(rightEye);
-      const rawAvgEAR = (rawLeftEAR + rawRightEAR) / 2;
 
       const smoothLeft = emaSmooth(leftEARHistoryRef.current, rawLeftEAR, EMA_ALPHA);
       const smoothRight = emaSmooth(rightEARHistoryRef.current, rawRightEAR, EMA_ALPHA);
@@ -184,19 +176,17 @@ export function useFaceDetection() {
           const trimCount = Math.floor(sorted.length * 0.15);
           const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
           const baseline = average(trimmed);
-          const openThresh = baseline * 0.72;
           const closedThresh = baseline * 0.45;
           baselineEARRef.current = baseline;
-          openThresholdRef.current = openThresh;
           closedThresholdRef.current = closedThresh;
 
-          console.log(`[FaceDetect] Calibration done: baseline=${baseline.toFixed(4)}, open=${openThresh.toFixed(4)}, closed=${closedThresh.toFixed(4)}`);
+          console.log(`[FaceDetect] CALIBRATION DONE: baseline=${baseline.toFixed(4)} closedThreshold=${closedThresh.toFixed(4)}`);
 
           setState(prev => ({
             ...prev,
             faceDetected: true,
             baselineEAR: baseline,
-            openThreshold: openThresh,
+            openThreshold: baseline * 0.72,
             closedThreshold: closedThresh,
             isCalibrated: true,
             calibrationProgress: 1,
@@ -207,6 +197,9 @@ export function useFaceDetection() {
             fps: fpsRef.current,
           }));
         } else {
+          if (calibrationSamplesRef.current.length % 10 === 0) {
+            console.log(`[FaceDetect] Calibrating: ${Math.round(progress * 100)}% rawL=${rawLeftEAR.toFixed(3)} rawR=${rawRightEAR.toFixed(3)} smL=${smoothLeft.toFixed(3)} smR=${smoothRight.toFixed(3)}`);
+          }
           setState(prev => ({
             ...prev,
             faceDetected: true,
@@ -223,64 +216,20 @@ export function useFaceDetection() {
         return;
       }
 
-      const openThresh = openThresholdRef.current;
+      // POST-CALIBRATION: Simple threshold comparison using LOCAL variables
       const closedThresh = closedThresholdRef.current;
 
-      const rawLeftOpen = smoothLeft > openThresh;
-      const rawRightOpen = smoothRight > openThresh;
-      const rawLeftClosed = smoothLeft < closedThresh;
-      const rawRightClosed = smoothRight < closedThresh;
+      const leftClosedNow = smoothLeft < closedThresh;
+      const rightClosedNow = smoothRight < closedThresh;
+      const bothClosedNow = leftClosedNow && rightClosedNow;
+      const bothOpenNow = !leftClosedNow && !rightClosedNow;
 
-      // Left eye state with confirmation counters
-      if (rawLeftOpen) {
-        leftClosedCountRef.current = 0;
-        leftOpenCountRef.current++;
-      } else if (rawLeftClosed) {
-        leftOpenCountRef.current = 0;
-        leftClosedCountRef.current++;
-      }
-
-      // Right eye state with confirmation counters
-      if (rawRightOpen) {
-        rightClosedCountRef.current = 0;
-        rightOpenCountRef.current++;
-      } else if (rawRightClosed) {
-        rightOpenCountRef.current = 0;
-        rightClosedCountRef.current++;
-      }
-
-      const prev = stateRef.current;
-
-      let leftEyeOpen = prev.leftEyeOpen;
-      if (leftOpenCountRef.current >= OPEN_CONFIRM_FRAMES) {
-        leftEyeOpen = true;
-      } else if (leftClosedCountRef.current >= CLOSED_CONFIRM_FRAMES) {
-        leftEyeOpen = false;
-      }
-
-      let rightEyeOpen = prev.rightEyeOpen;
-      if (rightOpenCountRef.current >= OPEN_CONFIRM_FRAMES) {
-        rightEyeOpen = true;
-      } else if (rightClosedCountRef.current >= CLOSED_CONFIRM_FRAMES) {
-        rightEyeOpen = false;
-      }
-
-      const getEyeState = (ear: number, isOpen: boolean): EyeState => {
-        if (isOpen) return 'open';
-        if (ear < closedThresh * 0.8) return 'closed';
-        return 'closing';
-      };
-
-      const leftEyeState = getEyeState(smoothLeft, leftEyeOpen);
-      const rightEyeState = getEyeState(smoothRight, rightEyeOpen);
-      const bothOpen = leftEyeOpen && rightEyeOpen;
-      const bothClosed = !leftEyeOpen && !rightEyeOpen;
-      const eyeState: EyeState = bothOpen ? 'open' : bothClosed ? 'closed' : 'closing';
-
-      if (bothClosed) {
+      // Update consecutive counter using local variables
+      if (bothClosedNow) {
         consecutiveClosedRef.current++;
       } else {
-        if (consecutiveClosedRef.current > 0 && consecutiveClosedRef.current < CLOSED_CONFIRM_FRAMES * 2) {
+        // Blink detection
+        if (consecutiveClosedRef.current > 0 && consecutiveClosedRef.current < 10) {
           const blinkTime = Date.now();
           if (blinkTime - lastBlinkTimeRef.current > 200) {
             blinkCountRef.current++;
@@ -290,13 +239,25 @@ export function useFaceDetection() {
         consecutiveClosedRef.current = 0;
       }
 
+      const leftEyeState: EyeState = leftClosedNow ? 'closed' : 'open';
+      const rightEyeState: EyeState = rightClosedNow ? 'closed' : 'open';
+      const eyeState: EyeState = bothClosedNow ? 'closed' : bothOpenNow ? 'open' : 'closing';
+
       let drowsinessScore = 0;
-      if (bothClosed) {
+      if (bothClosedNow) {
         drowsinessScore = Math.min(consecutiveClosedRef.current / 30, 1);
       }
 
-      const eyeColor = bothOpen ? '#10b981' : eyeState === 'closing' ? '#f59e0b' : '#ef4444';
-      drawLandmarks(ctx, jaw, leftEye, rightEye, nose, mouth, landmarks, bothOpen, eyeColor);
+      // Log every 10th frame for diagnostics
+      logCounterRef.current++;
+      if (logCounterRef.current % 10 === 0) {
+        console.log(
+          `[FaceDetect] rawL=${rawLeftEAR.toFixed(3)} rawR=${rawRightEAR.toFixed(3)} | smL=${smoothLeft.toFixed(3)} smR=${smoothRight.toFixed(3)} | thresh=${closedThresh.toFixed(3)} | L=${leftClosedNow ? 'CLOSED' : 'OPEN'} R=${rightClosedNow ? 'CLOSED' : 'OPEN'} | consec=${consecutiveClosedRef.current}`
+        );
+      }
+
+      const eyeColor = bothOpenNow ? '#10b981' : eyeState === 'closing' ? '#f59e0b' : '#ef4444';
+      drawLandmarks(ctx, jaw, leftEye, rightEye, nose, mouth, landmarks, bothOpenNow, eyeColor);
 
       ctx.fillStyle = eyeColor;
       const allPoints = landmarks.positions;
@@ -320,12 +281,13 @@ export function useFaceDetection() {
       const pitch = (noseTip.y - canvas.height / 2) / canvas.height * 60;
       const roll = Math.atan2(rightEyeCenter.y - leftEyeCenter.y, rightEyeCenter.x - leftEyeCenter.x) * (180 / Math.PI);
 
+      // Update React state — but use local variables for logic
       setState(prev => ({
         ...prev,
         faceDetected: true,
-        eyesOpen: bothOpen,
-        leftEyeOpen,
-        rightEyeOpen,
+        eyesOpen: bothOpenNow,
+        leftEyeOpen: !leftClosedNow,
+        rightEyeOpen: !rightClosedNow,
         leftEyeState,
         rightEyeState,
         eyeState,
@@ -354,7 +316,7 @@ export function useFaceDetection() {
 
     try {
       if (!modelsLoadedRef.current) {
-        console.log('[FaceDetect] Loading models...');
+        console.log('[FaceDetect] Loading models from', MODEL_URL);
         await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
         await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
         modelsLoadedRef.current = true;
@@ -366,15 +328,11 @@ export function useFaceDetection() {
 
       if (existingStream && existingStream.active) {
         stream = existingStream;
-        console.log('[FaceDetect] Using existing camera stream');
+        console.log('[FaceDetect] Using existing stream');
       } else {
-        console.log('[FaceDetect] Requesting camera...');
+        console.log('[FaceDetect] Requesting front camera...');
         stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'user',
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-          },
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
         });
         console.log('[FaceDetect] Camera obtained');
       }
@@ -384,19 +342,14 @@ export function useFaceDetection() {
 
       await new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error('Video load timeout')), 10000);
-
         const onReady = () => {
           clearTimeout(timeout);
           video.play()
             .then(() => { console.log('[FaceDetect] Video playing'); resolve(); })
             .catch((e) => { console.error('[FaceDetect] Play error:', e); reject(e); });
         };
-
-        if (video.readyState >= 1) {
-          onReady();
-        } else {
-          video.onloadedmetadata = onReady;
-        }
+        if (video.readyState >= 1) onReady();
+        else video.onloadedmetadata = onReady;
       });
 
       console.log('[FaceDetect] Video:', video.videoWidth, 'x', video.videoHeight);
@@ -416,15 +369,10 @@ export function useFaceDetection() {
     } catch (err: any) {
       console.error('[FaceDetect] Error:', err);
       let errorMsg = err.message || 'Failed to start face detection';
-      if (err.name === 'NotAllowedError') {
-        errorMsg = 'Camera permission denied. Please allow camera access.';
-      } else if (err.name === 'NotFoundError') {
-        errorMsg = 'No camera found. Please connect a camera.';
-      } else if (err.name === 'NotReadableError') {
-        errorMsg = 'Camera is in use by another application.';
-      } else if (err.message?.includes('timeout')) {
-        errorMsg = 'Camera connection timed out.';
-      }
+      if (err.name === 'NotAllowedError') errorMsg = 'Camera permission denied. Please allow camera access.';
+      else if (err.name === 'NotFoundError') errorMsg = 'No camera found. Please connect a camera.';
+      else if (err.name === 'NotReadableError') errorMsg = 'Camera is in use by another application.';
+      else if (err.message?.includes('timeout')) errorMsg = 'Camera connection timed out.';
       setState(prev => ({
         ...prev,
         isModelLoading: false,
@@ -435,18 +383,8 @@ export function useFaceDetection() {
   }, [detectFace]);
 
   const stopDetection = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-    leftClosedCountRef.current = 0;
-    rightClosedCountRef.current = 0;
-    leftOpenCountRef.current = 0;
-    rightOpenCountRef.current = 0;
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
     consecutiveClosedRef.current = 0;
     noFaceGraceRef.current = 0;
     leftEARHistoryRef.current = [];
@@ -460,12 +398,7 @@ export function useFaceDetection() {
   const recalibrate = useCallback(() => {
     calibrationSamplesRef.current = [];
     baselineEARRef.current = 0;
-    openThresholdRef.current = 0.22;
     closedThresholdRef.current = 0.16;
-    leftClosedCountRef.current = 0;
-    rightClosedCountRef.current = 0;
-    leftOpenCountRef.current = 0;
-    rightOpenCountRef.current = 0;
     consecutiveClosedRef.current = 0;
     leftEARHistoryRef.current = [];
     rightEARHistoryRef.current = [];
@@ -489,7 +422,7 @@ export function useFaceDetection() {
 }
 
 function calculateEAR(eyePoints: any[]): number {
-  if (eyePoints.length < 6) return 0.3;
+  if (eyePoints.length < 6) return 0;
 
   const p1 = eyePoints[1];
   const p2 = eyePoints[2];
@@ -502,7 +435,7 @@ function calculateEAR(eyePoints: any[]): number {
   const vertical2 = Math.hypot(p2.x - p4.x, p2.y - p4.y);
   const horizontal = Math.hypot(p3.x - p0.x, p3.y - p0.y);
 
-  if (horizontal < 1) return 0.3;
+  if (horizontal < 1) return 0;
   return (vertical1 + vertical2) / (2.0 * horizontal);
 }
 

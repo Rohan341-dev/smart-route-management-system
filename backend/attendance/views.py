@@ -1,3 +1,4 @@
+import json
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -39,25 +40,38 @@ class ScanStudentQRView(APIView):
         serializer.is_valid(raise_exception=True)
 
         qr_data = serializer.validated_data['qr_data']
-        bus_id = serializer.validated_data['bus_id']
-        driver_id = serializer.validated_data['driver_id']
         action = serializer.validated_data['action']
 
-        # Find student by qr_id
+        # Parse QR payload — extract studentId from JSON or raw string
+        student_id = None
         try:
-            student = Student.objects.get(qr_id=qr_data, qr_enabled=True)
+            payload = json.loads(qr_data)
+            if isinstance(payload, dict) and payload.get('type') == 'SMARTBUS_STUDENT':
+                student_id = payload.get('studentId')
+        except (json.JSONDecodeError, TypeError, AttributeError):
+            student_id = qr_data
+
+        if not student_id:
+            return Response(
+                {'error': 'Invalid QR code format'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Find student by student_id
+        try:
+            student = Student.objects.get(student_id=student_id, qr_enabled=True)
         except Student.DoesNotExist:
             return Response(
-                {'error': 'Invalid or disabled QR code'},
+                {'error': f'Invalid or disabled QR code for student {student_id}'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        try:
-            bus = Bus.objects.get(pk=bus_id)
-        except Bus.DoesNotExist:
+        # Derive bus from student's assigned bus (don't trust frontend bus_id)
+        bus = student.assigned_bus
+        if not bus:
             return Response(
-                {'error': 'Bus not found'},
-                status=status.HTTP_404_NOT_FOUND,
+                {'error': f'Student {student.full_name} is not assigned to any bus'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Determine status and trip_stage
@@ -73,7 +87,7 @@ class ScanStudentQRView(APIView):
             student=student,
             bus=bus,
             route=bus.assigned_route,
-            driver_id=driver_id,
+            driver=request.user,
             status=new_status,
             method='qr',
             trip_stage=trip_stage,
@@ -109,7 +123,13 @@ class ScanStudentQRView(APIView):
                 bus=bus,
             )
 
-        return Response(
-            AttendanceRecordSerializer(record).data,
-            status=status.HTTP_201_CREATED,
-        )
+        return Response({
+            'success': True,
+            'student': {
+                'id': student.student_id,
+                'name': student.full_name,
+            },
+            'status': new_status,
+            'message': f'Student {"picked up" if action == "pick" else "dropped"} successfully',
+            'record': AttendanceRecordSerializer(record).data,
+        }, status=status.HTTP_201_CREATED)
