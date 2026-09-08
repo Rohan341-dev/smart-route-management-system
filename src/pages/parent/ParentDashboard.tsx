@@ -2,7 +2,7 @@ import { useStore } from '../../store/useStore';
 import { Bus, MapPin, Clock, Users, Navigation, Shield, LogOut, Home, Route, Eye, AlertTriangle } from 'lucide-react';
 
 export default function ParentDashboard() {
-  const { currentUser, students, vehicles, routes, notifications, logout, setCurrentPage } = useStore();
+  const { currentUser, students, vehicles, routes, notifications, drivers, logout, setCurrentPage } = useStore();
   const childIds = currentUser?.studentIds || [];
   const childStudents = students.filter(s => childIds.includes(s.id));
   const childBusIds = [...new Set(childStudents.map(s => s.assignedBus))];

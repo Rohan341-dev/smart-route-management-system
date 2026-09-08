@@ -1,10 +1,10 @@
 import { useStore } from '../store/useStore';
 import {
-  LayoutDashboard, MapPin, Truck, Users, Bus, Route,
-  Monitor, AlertTriangle, Shield, Bell, BarChart3, Settings, QrCode
+  LayoutDashboard, MapPin, Users, Bus, Route,
+  AlertTriangle, Shield, Bell, Settings, QrCode, Home, Eye, User
 } from 'lucide-react';
 
-const navItems = [
+const adminNavItems = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'live-fleet', label: 'Fleet', icon: MapPin },
   { id: 'attendance', label: 'QR Scan', icon: QrCode },
@@ -15,8 +15,35 @@ const navItems = [
   { id: 'settings', label: 'More', icon: Settings },
 ];
 
+const parentNavItems = [
+  { id: 'parent-home', label: 'Home', icon: Home },
+  { id: 'parent-track', label: 'Track', icon: MapPin },
+  { id: 'parent-children', label: 'Children', icon: Users },
+  { id: 'parent-attendance', label: 'Attendance', icon: QrCode },
+  { id: 'notifications', label: 'Notify', icon: Bell },
+];
+
+const driverNavItems = [
+  { id: 'driver-home', label: 'Home', icon: Home },
+  { id: 'driver-route', label: 'Route', icon: Route },
+  { id: 'driver-monitoring', label: 'Camera', icon: Eye },
+  { id: 'sos', label: 'SOS', icon: Shield },
+  { id: 'driver-profile', label: 'Profile', icon: User },
+];
+
+function getNavItems(role: string) {
+  switch (role) {
+    case 'admin': return adminNavItems;
+    case 'parent': return parentNavItems;
+    case 'driver': return driverNavItems;
+    default: return adminNavItems;
+  }
+}
+
 export default function MobileNav() {
-  const { currentPage, setCurrentPage, driverAlerts, sosAlerts, notifications } = useStore();
+  const { currentPage, setCurrentPage, driverAlerts, sosAlerts, notifications, currentUser } = useStore();
+  const role = currentUser?.role || 'admin';
+  const navItems = getNavItems(role);
   const activeAlerts = driverAlerts.filter(a => !a.acknowledged).length;
   const activeSOS = sosAlerts.filter(s => s.status === 'active' || s.status === 'escalating').length;
   const unreadNotifs = notifications.filter(n => !n.read).length;
