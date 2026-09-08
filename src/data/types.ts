@@ -6,7 +6,7 @@ export type TripStage = 'morning_pickup' | 'morning_drop' | 'evening_pickup' | '
 export type AlertType = 'drowsiness' | 'overspeed' | 'harsh_braking' | 'route_deviation' | 'driver_offline';
 export type SOSStatus = 'active' | 'acknowledged' | 'escalating' | 'resolved' | 'false_alarm';
 export type EscalationLevel = 'primary' | 'secondary' | 'authority';
-export type TripStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+export type TripStatus = 'not_started' | 'starting' | 'in_progress' | 'delayed' | 'stopped' | 'completed' | 'scheduled' | 'cancelled';
 export type DriverEyeStatus = 'open' | 'closed' | 'squinting';
 export type DriverAttention = 'normal' | 'distracted' | 'absent';
 export type UserRole = 'admin' | 'parent' | 'driver';
@@ -234,8 +234,6 @@ export interface SmartBusQRPayload {
   studentId: string;
   qrId: string;
 }
-
-export type TripStatus = 'not_started' | 'starting' | 'in_progress' | 'delayed' | 'stopped' | 'completed';
 
 export interface StopStatus {
   stopId: string;

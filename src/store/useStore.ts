@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole } from '../data/types';
+import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, SmartBusQRPayload, TripStatus, StopStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -526,7 +526,25 @@ export const useStore = create<AppState>((set, get) => ({
   scanStudentQR: (qrCode: string) => {
     const state = get();
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    const student = state.students.find(s => s.qrCode === qrCode);
+
+    let studentId = '';
+    let qrId = '';
+    try {
+      const payload: SmartBusQRPayload = JSON.parse(qrCode);
+      if (payload.type === 'SMARTBUS_STUDENT' && payload.studentId) {
+        studentId = payload.studentId;
+        qrId = payload.qrId || '';
+      }
+    } catch {
+      studentId = qrCode;
+    }
+
+    const student = state.students.find(s =>
+      s.studentId === studentId ||
+      s.id === studentId ||
+      s.qrId === qrId ||
+      s.qrCode === qrCode
+    );
 
     if (!student) {
       set({

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { QrCode, Play, CheckCircle } from 'lucide-react';
+import { SmartBusQRPayload } from '../data/types';
 
 interface DemoQRScannerProps {
   onScan: (qrCode: string) => void;
@@ -19,7 +20,12 @@ export default function DemoQRScanner({ onScan, isActive }: DemoQRScannerProps) 
     if (!selectedStudentId) return;
     const student = assignedStudents.find(s => s.id === selectedStudentId);
     if (student) {
-      onScan(student.qrCode);
+      try {
+        const payload: SmartBusQRPayload = JSON.parse(student.qrCode);
+        onScan(JSON.stringify(payload));
+      } catch {
+        onScan(student.qrCode);
+      }
       setSelectedStudentId('');
     }
   };
