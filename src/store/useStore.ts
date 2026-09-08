@@ -542,17 +542,23 @@ export const useStore = create<AppState>((set, get) => ({
     const state = get();
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+    console.log('[ScanQR] Raw QR:', qrCode);
+
     let studentId = '';
     let qrId = '';
     try {
       const payload: SmartBusQRPayload = JSON.parse(qrCode);
+      console.log('[ScanQR] Parsed payload:', payload);
       if (payload.type === 'SMARTBUS_STUDENT' && payload.studentId) {
         studentId = payload.studentId;
         qrId = payload.qrId || '';
       }
     } catch {
+      console.log('[ScanQR] Not JSON, using raw as studentId');
       studentId = qrCode;
     }
+
+    console.log('[ScanQR] Looking for studentId:', studentId, 'qrId:', qrId);
 
     const student = state.students.find(s =>
       s.studentId === studentId ||
@@ -562,64 +568,23 @@ export const useStore = create<AppState>((set, get) => ({
     );
 
     if (!student) {
+      console.log('[ScanQR] Student NOT FOUND');
       set({
-        lastScanResult: { success: false, message: 'Unauthorized QR code - Student not found' },
-        attendanceEvents: [{
-          id: `AEVT-${Date.now()}`,
-          type: 'unauthorized',
-          studentId: 'unknown',
-          studentName: 'Unknown',
-          vehicleId: state.selectedAttendanceVehicle,
-          message: `Unauthorized QR scan attempted on ${state.selectedAttendanceVehicle}`,
-          time: now,
-          severity: 'danger',
-        }, ...state.attendanceEvents],
-        notifications: [{
-          id: `NOT-${Date.now()}`,
-          type: 'student' as const,
-          title: 'Unauthorized QR Scan',
-          message: `Invalid QR code scanned on ${state.selectedAttendanceVehicle}`,
-          time: now,
-          read: false,
-          severity: 'critical' as const,
-          vehicleId: state.selectedAttendanceVehicle,
-        }, ...state.notifications],
+        lastScanResult: { success: false, message: `Student not found for QR: ${studentId || qrCode}` },
       });
       return;
     }
 
-    if (student.assignedVehicleId !== state.selectedAttendanceVehicle) {
-      set({
-        lastScanResult: { success: false, message: `${student.fullName} is not assigned to ${state.selectedAttendanceVehicle}` },
-        attendanceEvents: [{
-          id: `AEVT-${Date.now()}`,
-          type: 'unauthorized',
-          studentId: student.id,
-          studentName: student.fullName,
-          vehicleId: state.selectedAttendanceVehicle,
-          message: `${student.fullName} attempted to board wrong bus - assigned to ${student.assignedVehicleId}`,
-          time: now,
-          severity: 'warning',
-        }, ...state.attendanceEvents],
-        notifications: [{
-          id: `NOT-${Date.now()}`,
-          type: 'student' as const,
-          title: 'Wrong Bus Alert',
-          message: `${student.fullName} scanned on wrong bus. Assigned: ${student.assignedVehicleId}`,
-          time: now,
-          read: false,
-          severity: 'warning' as const,
-          vehicleId: state.selectedAttendanceVehicle,
-        }, ...state.notifications],
-      });
-      return;
-    }
+    console.log('[ScanQR] Student found:', student.fullName, student.studentId, 'status:', student.attendanceStatus);
 
     const isDropStage = state.selectedTripStage.includes('drop');
     const isAlreadyBoarded = student.attendanceStatus === 'on_bus' || student.attendanceStatus === 'picked_up';
     const isAlreadyDropped = student.attendanceStatus === 'dropped';
 
+    console.log('[ScanQR] isDropStage:', isDropStage, 'isAlreadyBoarded:', isAlreadyBoarded, 'isAlreadyDropped:', isAlreadyDropped);
+
     if (!isDropStage && isAlreadyBoarded) {
+      console.log('[ScanQR] REJECTED: already boarded');
       set({
         lastScanResult: { success: false, message: `${student.fullName} has already boarded` },
       });
@@ -627,6 +592,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     if (isDropStage && isAlreadyDropped) {
+      console.log('[ScanQR] REJECTED: already dropped');
       set({
         lastScanResult: { success: false, message: `${student.fullName} has already been dropped` },
       });
@@ -634,6 +600,7 @@ export const useStore = create<AppState>((set, get) => ({
     }
 
     if (isDropStage && !isAlreadyBoarded) {
+      console.log('[ScanQR] REJECTED: not boarded yet');
       set({
         lastScanResult: { success: false, message: `${student.fullName} has not boarded yet` },
       });
@@ -653,15 +620,14 @@ export const useStore = create<AppState>((set, get) => ({
       scannedBy: 'qr_camera',
     };
 
+    console.log('[ScanQR] Creating attendance record:', record);
+
     // Attempt to sync with Django backend
-    const busId = state.selectedAttendanceVehicle;
-    const driverId = state.currentUser?.driverId || 'DRV-07';
-    const action = isDropStage ? 'drop' : 'pick';
-    attendanceAPI.scan(qrCode, busId, driverId, action).then(result => {
+    attendanceAPI.scan(qrCode, state.selectedAttendanceVehicle, state.currentUser?.driverId || 'DRV-07', isDropStage ? 'drop' : 'pick').then(result => {
       if (result.error) {
-        console.warn('[Attendance] Backend sync failed:', result.error);
+        console.warn('[ScanQR] Backend sync failed:', result.error);
       } else {
-        console.log('[Attendance] Backend sync success:', result.data);
+        console.log('[ScanQR] Backend sync success:', result.data);
       }
     }).catch(() => {});
 
@@ -689,46 +655,49 @@ export const useStore = create<AppState>((set, get) => ({
       severity: 'success',
     };
 
-    set((s) => ({
-      students: s.students.map(st => st.id === student.id ? {
-        ...st,
-        status: isDropStage ? 'dropped' as any : 'on_bus' as any,
-        attendanceStatus: newStatus,
-        lastBoardedAt: !isDropStage ? now : st.lastBoardedAt,
-        lastDroppedAt: isDropStage ? now : st.lastDroppedAt,
-        pickupTime: !isDropStage ? now : st.pickupTime,
-        dropTime: isDropStage ? now : st.dropTime,
-        attendanceHistory: [...st.attendanceHistory, record],
-      } : st),
-      attendanceRecords: [record, ...s.attendanceRecords],
-      attendanceEvents: [event, ...s.attendanceEvents],
-      activityLogs: [activityLog, ...s.activityLogs],
-      attendanceSession: s.attendanceSession ? {
-        ...s.attendanceSession,
-        boarded: !isDropStage ? s.attendanceSession.boarded + 1 : s.attendanceSession.boarded,
-        dropped: isDropStage ? s.attendanceSession.dropped + 1 : s.attendanceSession.dropped,
-        scannedStudentIds: [...s.attendanceSession.scannedStudentIds, student.id],
-      } : s.attendanceSession,
-      lastScannedStudentId: student.id,
-      lastScanResult: {
-        success: true,
-        message: isDropStage ? `${student.fullName} dropped successfully` : `${student.fullName} boarded successfully`,
-        student,
-      },
-      notifications: [{
-        id: `NOT-${Date.now()}`,
-        type: 'student' as const,
-        title: isDropStage ? 'Student Dropped' : 'Student Boarded',
-        message: isDropStage
-          ? `${student.fullName} dropped at school - ${state.selectedAttendanceVehicle}`
-          : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
-        time: now,
-        read: false,
-        severity: 'info' as const,
-        studentId: student.id,
-        vehicleId: state.selectedAttendanceVehicle,
-      }, ...s.notifications],
-    }));
+    set((s) => {
+      console.log('[ScanQR] SUCCESS: Updating state for', student.fullName, '→', newStatus);
+      return {
+        students: s.students.map(st => st.id === student.id ? {
+          ...st,
+          status: isDropStage ? 'dropped' as any : 'on_bus' as any,
+          attendanceStatus: newStatus,
+          lastBoardedAt: !isDropStage ? now : st.lastBoardedAt,
+          lastDroppedAt: isDropStage ? now : st.lastDroppedAt,
+          pickupTime: !isDropStage ? now : st.pickupTime,
+          dropTime: isDropStage ? now : st.dropTime,
+          attendanceHistory: [...st.attendanceHistory, record],
+        } : st),
+        attendanceRecords: [record, ...s.attendanceRecords],
+        attendanceEvents: [event, ...s.attendanceEvents],
+        activityLogs: [activityLog, ...s.activityLogs],
+        attendanceSession: s.attendanceSession ? {
+          ...s.attendanceSession,
+          boarded: !isDropStage ? s.attendanceSession.boarded + 1 : s.attendanceSession.boarded,
+          dropped: isDropStage ? s.attendanceSession.dropped + 1 : s.attendanceSession.dropped,
+          scannedStudentIds: [...s.attendanceSession.scannedStudentIds, student.id],
+        } : s.attendanceSession,
+        lastScannedStudentId: student.id,
+        lastScanResult: {
+          success: true,
+          message: isDropStage ? `${student.fullName} dropped successfully` : `${student.fullName} boarded successfully`,
+          student,
+        },
+        notifications: [{
+          id: `NOT-${Date.now()}`,
+          type: 'student' as const,
+          title: isDropStage ? 'Student Dropped' : 'Student Boarded',
+          message: isDropStage
+            ? `${student.fullName} dropped at school - ${state.selectedAttendanceVehicle}`
+            : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+          time: now,
+          read: false,
+          severity: 'info' as const,
+          studentId: student.id,
+          vehicleId: state.selectedAttendanceVehicle,
+        }, ...s.notifications],
+      };
+    });
   },
 
   markStudentAbsent: (studentId: string) => {

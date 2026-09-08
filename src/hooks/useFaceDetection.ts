@@ -303,8 +303,12 @@ export function useFaceDetection() {
         lastBlinkTime: lastBlinkTimeRef.current,
         blinkCount: blinkCountRef.current,
       }));
-    } catch {
-      // Ignore detection errors silently
+    } catch (err: any) {
+      console.error('[FaceDetect] Detection error:', err?.message || err);
+      setState(prev => ({
+        ...prev,
+        error: err?.message || 'Detection failed',
+      }));
     }
   }, []);
 

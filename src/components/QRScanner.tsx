@@ -14,6 +14,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [lastDecoded, setLastDecoded] = useState<string>('');
+  const [scanCount, setScanCount] = useState(0);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScanRef = useRef<string>('');
   const scanDebounceRef = useRef(0);
@@ -51,45 +52,58 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         return;
       }
 
+      console.log('[QRScanner] Creating Html5Qrcode instance...');
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
-      // Use facingMode directly — browser handles camera selection + permission prompt
+      console.log('[QRScanner] Starting camera with facingMode:', facingMode);
       await scanner.start(
         { facingMode },
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
+          qrbox: { width: 280, height: 280 },
         },
         (decodedText) => {
           const now = Date.now();
-          if (now - scanDebounceRef.current < 2500) return;
-          if (decodedText === lastScanRef.current && now - scanDebounceRef.current < 5000) return;
+          console.log('[QRScanner] RAW QR:', decodedText);
+
+          if (now - scanDebounceRef.current < 2500) {
+            console.log('[QRScanner] Debounced (same scan within 2.5s)');
+            return;
+          }
+          if (decodedText === lastScanRef.current && now - scanDebounceRef.current < 5000) {
+            console.log('[QRScanner] Duplicate scan within 5s');
+            return;
+          }
 
           scanDebounceRef.current = now;
           lastScanRef.current = decodedText;
           setLastDecoded(decodedText);
+          setScanCount(c => c + 1);
+          console.log('[QRScanner] Calling onScan with:', decodedText);
           onScan(decodedText);
         },
-        () => {}
+        (errorMessage) => {
+          // Frame scan failure — expected, no QR in view
+        }
       );
 
       if (mountedRef.current) {
         setCameraStatus('active');
+        console.log('[QRScanner] Camera active, scanning...');
       }
     } catch (err: any) {
-      console.error('QR Scanner error:', err.name, err.message, err);
+      console.error('[QRScanner] Error:', err.name, err.message);
       let errorMsg = 'Unable to start QR scanner. Try again.';
       let status: CameraStatus = 'error';
 
       const name = err.name || '';
       const msg = err.message || '';
 
-      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || msg.includes('Permission') || msg.includes('permission') || msg.includes('denied')) {
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError' || msg.includes('denied')) {
         errorMsg = 'Camera permission denied. Tap the lock icon (🔒) in address bar → Camera → Allow, then reload.';
         status = 'denied';
-      } else if (name === 'NotFoundError' || msg.includes('not found') || msg.includes('Requested device not found') || msg.includes('DevicesNotFound')) {
+      } else if (name === 'NotFoundError' || msg.includes('not found') || msg.includes('Requested device not found')) {
         errorMsg = 'No camera found on this device.';
         status = 'unavailable';
       } else if (name === 'NotReadableError' || msg.includes('Could not start video source')) {
@@ -156,7 +170,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
   const getStatusText = () => {
     switch (cameraStatus) {
       case 'active':
-        return 'Scanner Ready';
+        return `Scanner Ready (${scanCount} scans)`;
       case 'starting':
         return 'Starting Camera...';
       case 'denied':
@@ -173,7 +187,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
   return (
     <div className="space-y-3">
       <div className="relative dark:bg-navy-900 bg-surface-100 rounded-2xl overflow-hidden border dark:border-white/10 border-surface-200" style={{ minHeight: '280px' }}>
-        <div id="qr-reader" className="w-full" style={{ minHeight: '280px' }} />
+        <div id="qr-reader" style={{ width: '100%', minHeight: '280px' }} />
 
         {cameraStatus !== 'active' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
@@ -216,7 +230,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         {cameraStatus === 'active' && (
           <>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-56 h-56 border-2 border-electric-500/50 rounded-2xl relative">
+              <div className="w-64 h-64 border-2 border-electric-500/50 rounded-2xl relative">
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-electric-400 rounded-tl-lg" />
                 <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-electric-400 rounded-tr-lg" />
                 <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-electric-400 rounded-bl-lg" />
@@ -230,7 +244,7 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
             </div>
             {lastDecoded && (
               <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 z-10">
-                <p className="text-[10px] text-emerald-400 font-bold">Last scan: {lastDecoded}</p>
+                <p className="text-[10px] text-emerald-400 font-bold truncate">Last: {lastDecoded}</p>
               </div>
             )}
           </>

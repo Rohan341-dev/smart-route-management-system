@@ -613,6 +613,29 @@ export default function Driver() {
                   </div>
                 </div>
 
+                {faceDetection.error && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                    <p className="text-[9px] text-red-400 font-bold">ERROR</p>
+                    <p className="text-[10px] text-red-300">{faceDetection.error}</p>
+                  </div>
+                )}
+
+                {/* RAW BOOLEAN STATES */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2 text-center">
+                    <p className="text-[9px] text-gray-400">leftClosedNow (raw)</p>
+                    <p className={`text-[10px] font-mono font-bold ${!faceDetection.leftEyeOpen ? 'text-red-400' : 'text-green-400'}`}>
+                      {String(!faceDetection.leftEyeOpen)}
+                    </p>
+                  </div>
+                  <div className="dark:bg-navy-700/30 bg-surface-50 rounded-lg p-2 text-center">
+                    <p className="text-[9px] text-gray-400">rightClosedNow (raw)</p>
+                    <p className={`text-[10px] font-mono font-bold ${!faceDetection.rightEyeOpen ? 'text-red-400' : 'text-green-400'}`}>
+                      {String(!faceDetection.rightEyeOpen)}
+                    </p>
+                  </div>
+                </div>
+
                 {/* LEFT EYE */}
                 <div className={`rounded-xl p-3 border ${!faceDetection.leftEyeOpen ? 'bg-red-500/10 border-red-500/30' : 'bg-green-500/10 border-green-500/30'}`}>
                   <div className="flex items-center justify-between mb-1">
