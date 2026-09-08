@@ -37,9 +37,9 @@ export interface FaceDetectionState {
 const MODEL_URL = '/models';
 const CALIBRATION_FRAMES = 40;
 const DETECTION_INTERVAL_MS = 60;
-const CLOSED_CONFIRM_FRAMES = 4;
+const CLOSED_CONFIRM_FRAMES = 3;
 const OPEN_CONFIRM_FRAMES = 2;
-const EMA_ALPHA = 0.35;
+const EMA_ALPHA = 0.45;
 const NO_FACE_GRACE_FRAMES = 8;
 
 export function useFaceDetection() {
@@ -186,11 +186,13 @@ export function useFaceDetection() {
           const trimCount = Math.floor(sorted.length * 0.15);
           const trimmed = sorted.slice(trimCount, sorted.length - trimCount);
           const baseline = average(trimmed);
-          const openThresh = baseline * 0.76;
-          const closedThresh = baseline * 0.52;
+          const openThresh = baseline * 0.72;
+          const closedThresh = baseline * 0.45;
           baselineEARRef.current = baseline;
           openThresholdRef.current = openThresh;
           closedThresholdRef.current = closedThresh;
+
+          console.log(`[FaceDetect] Calibration done: baseline=${baseline.toFixed(4)}, open=${openThresh.toFixed(4)}, closed=${closedThresh.toFixed(4)}`);
 
           setState(prev => ({
             ...prev,
@@ -231,6 +233,10 @@ export function useFaceDetection() {
       const rawLeftClosed = smoothLeft < closedThresh;
       const rawRightClosed = smoothRight < closedThresh;
 
+      if (frameCountRef.current % 20 === 0) {
+        console.log(`[FaceDetect] L_EAR=${smoothLeft.toFixed(4)} R_EAR=${smoothRight.toFixed(4)} | open>${openThresh.toFixed(3)} closed<${closedThresh.toFixed(3)} | L=${rawLeftOpen?'OPEN':rawLeftClosed?'CLOSED':'MID'} R=${rawRightOpen?'OPEN':rawRightClosed?'CLOSED':'MID'}`);
+      }
+
       if (rawLeftOpen) {
         leftClosedCountRef.current = 0;
         leftOpenCountRef.current = Math.min(leftOpenCountRef.current + 1, OPEN_CONFIRM_FRAMES + 1);
@@ -248,12 +254,28 @@ export function useFaceDetection() {
       }
 
       const prev = stateRef.current;
-      const leftEyeOpen = leftClosedCountRef.current >= CLOSED_CONFIRM_FRAMES ? false :
-                          leftOpenCountRef.current >= OPEN_CONFIRM_FRAMES ? true :
-                          prev.leftEyeOpen;
-      const rightEyeOpen = rightClosedCountRef.current >= CLOSED_CONFIRM_FRAMES ? false :
-                           rightOpenCountRef.current >= OPEN_CONFIRM_FRAMES ? true :
-                           prev.rightEyeOpen;
+
+      let leftEyeOpen = prev.leftEyeOpen;
+      if (rawLeftOpen) {
+        leftClosedCountRef.current = 0;
+        leftOpenCountRef.current++;
+        if (leftOpenCountRef.current >= 2) leftEyeOpen = true;
+      } else if (rawLeftClosed) {
+        leftOpenCountRef.current = 0;
+        leftClosedCountRef.current++;
+        if (leftClosedCountRef.current >= 2) leftEyeOpen = false;
+      }
+
+      let rightEyeOpen = prev.rightEyeOpen;
+      if (rawRightOpen) {
+        rightClosedCountRef.current = 0;
+        rightOpenCountRef.current++;
+        if (rightOpenCountRef.current >= 2) rightEyeOpen = true;
+      } else if (rawRightClosed) {
+        rightOpenCountRef.current = 0;
+        rightClosedCountRef.current++;
+        if (rightClosedCountRef.current >= 2) rightEyeOpen = false;
+      }
 
       const getEyeState = (ear: number, isOpen: boolean): EyeState => {
         if (isOpen) return 'open';

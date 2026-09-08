@@ -67,28 +67,31 @@ export default function Driver() {
   }, [gps.latitude, gps.longitude, gps.speed, gps.heading, gps.isActive, selectedDriver, selectedVehicle.id]);
 
   const checkCameraPermission = useCallback(async () => {
+    setCameraError(null);
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Camera not supported. Use HTTPS or a modern browser.');
+      return false;
+    }
+
     try {
-      const result = await navigator.permissions?.query({ name: 'camera' as PermissionName });
-      if (result?.state === 'granted') {
-        setCameraPermission(true);
-        setPermissionStep('location');
-        return true;
-      }
-    } catch {}
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       stream.getTracks().forEach(t => t.stop());
       setCameraPermission(true);
       setPermissionStep('location');
       return true;
     } catch (err: any) {
+      let msg = 'Camera unavailable';
       if (err.name === 'NotAllowedError') {
-        setCameraError('Camera permission denied. Please allow camera access in your browser settings.');
+        msg = 'Permission denied. In your browser: tap the lock/icon in the address bar → Camera → Allow, then reload this page.';
       } else if (err.name === 'NotFoundError') {
-        setCameraError('No camera found. Please connect a front camera.');
+        msg = 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError') {
+        msg = 'Camera is in use by another app.';
       } else {
-        setCameraError('Camera unavailable: ' + (err.message || 'Unknown error'));
+        msg = err.message || 'Unknown camera error';
       }
+      setCameraError(msg);
       return false;
     }
   }, []);
@@ -342,106 +345,40 @@ export default function Driver() {
 
       {screen === 'permissions' && (
         <div className="flex-1 flex flex-col items-center justify-center px-6 space-y-6">
-          {permissionStep !== 'ready' ? (
-            <>
-              <div className="w-16 h-16 rounded-full bg-electric-600/20 flex items-center justify-center">
-                <Shield className="w-8 h-8 text-electric-400" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-lg font-bold">
-                  {permissionStep === 'camera' && 'Camera Permission'}
-                  {permissionStep === 'location' && 'Location Permission'}
-                  {permissionStep === 'sound' && 'Alert Sound'}
-                </h2>
-                <p className="text-xs text-gray-400 mt-1">
-                  {permissionStep === 'camera' && 'Required for driver drowsiness detection using your front camera'}
-                  {permissionStep === 'location' && 'Required for live GPS tracking and student safety'}
-                  {permissionStep === 'sound' && 'Required for audible drowsiness alerts'}
-                </p>
-              </div>
-
-              {cameraError && permissionStep === 'camera' && (
-                <div className="w-full bg-red-900/30 border border-red-500/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <XCircle className="w-4 h-4 text-red-400" />
-                    <p className="text-xs font-bold text-red-400">Camera Error</p>
-                  </div>
-                  <p className="text-[11px] text-red-300">{cameraError}</p>
-                  <button
-                    onClick={() => { setCameraError(null); checkCameraPermission(); }}
-                    className="mt-3 w-full py-2 bg-red-600/20 hover:bg-red-600/30 rounded-lg text-xs text-red-400 transition-colors"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              )}
-
-              {permissionStep === 'camera' && !cameraError && (
-                <button onClick={checkCameraPermission} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
-                  <Camera className="w-4 h-4" /> Allow Camera
-                </button>
-              )}
-              {permissionStep === 'location' && (
-                <button onClick={requestLocation} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
-                  <MapPin className="w-4 h-4" /> Allow Location
-                </button>
-              )}
-              {permissionStep === 'sound' && (
-                <button onClick={enableSound} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
-                  <Volume2 className="w-4 h-4" /> Enable Sound
-                </button>
-              )}
-              <div className="flex gap-2">
-                {['camera', 'location', 'sound', 'ready'].map((step, i) => (
-                  <div key={step} className={`w-2 h-2 rounded-full ${
-                    step === permissionStep ? 'bg-electric-500' :
-                    (['camera', 'location', 'sound', 'ready'].indexOf(permissionStep) > i) ? 'bg-green-500' : 'bg-navy-700'
-                  }`}></div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="w-16 h-16 rounded-full bg-green-600/20 flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-400" />
-              </div>
-              <div className="text-center">
-                <h2 className="text-lg font-bold text-green-400">DRIVER SAFETY SYSTEM READY</h2>
-                <p className="text-xs text-gray-400 mt-1">All permissions granted</p>
-              </div>
-              <div className="space-y-2 w-full">
-                <div className="flex items-center gap-2 text-xs">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span>Camera Active</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span>GPS Active</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span>Alert Sound Active</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
-                  <span>AI Monitoring Active</span>
-                </div>
-              </div>
-              <div className="w-full space-y-2">
-                <div className="bg-navy-800/50 rounded-xl p-3">
-                  <p className="text-[10px] text-gray-400">Vehicle</p>
-                  <p className="text-sm font-bold">{selectedVehicle.id} — {selectedVehicle.plateNumber}</p>
-                </div>
-                <div className="bg-navy-800/50 rounded-xl p-3">
-                  <p className="text-[10px] text-gray-400">Driver</p>
-                  <p className="text-sm font-bold">{driver?.fullName || 'Select Driver'}</p>
-                </div>
-              </div>
-              <button onClick={startTrip} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
-                <Zap className="w-4 h-4" /> START TRIP
-              </button>
-            </>
-          )}
+          <div className="w-16 h-16 rounded-full bg-green-600/20 flex items-center justify-center">
+            <CheckCircle className="w-8 h-8 text-green-400" />
+          </div>
+          <div className="text-center">
+            <h2 className="text-lg font-bold text-green-400">DRIVER SAFETY SYSTEM READY</h2>
+            <p className="text-xs text-gray-400 mt-1">Camera will start automatically</p>
+          </div>
+          <div className="space-y-2 w-full">
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span>Drowsiness Detection Active</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span>GPS Tracking Ready</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              <CheckCircle className="w-4 h-4 text-green-400" />
+              <span>Alert Sound Ready</span>
+            </div>
+          </div>
+          <div className="w-full space-y-2">
+            <div className="bg-navy-800/50 rounded-xl p-3">
+              <p className="text-[10px] text-gray-400">Vehicle</p>
+              <p className="text-sm font-bold">{selectedVehicle.id} — {selectedVehicle.plateNumber}</p>
+            </div>
+            <div className="bg-navy-800/50 rounded-xl p-3">
+              <p className="text-[10px] text-gray-400">Driver</p>
+              <p className="text-sm font-bold">{driver?.fullName || 'Select Driver'}</p>
+            </div>
+          </div>
+          <button onClick={startTrip} className="btn-primary w-full py-3 text-sm flex items-center justify-center gap-2">
+            <Zap className="w-4 h-4" /> START TRIP
+          </button>
         </div>
       )}
 
