@@ -134,7 +134,11 @@ function PortalApp() {
       case 'sos': return <SOSEmergency />;
       case 'notifications': return <Notifications />;
       case 'alerts': return <Alerts />;
-      default: return <ParentDashboard />;
+      default: {
+        const role = useStore.getState().currentUser?.role;
+        if (role === 'driver') return <DriverDashboard />;
+        return <ParentDashboard />;
+      }
     }
   };
 

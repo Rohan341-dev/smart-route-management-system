@@ -140,7 +140,8 @@ export const useStore = create<AppState>((set, get) => ({
     if (account && account.password === password) {
       const user = { ...account.user, role };
       try { localStorage.setItem('smartbus-user-session', JSON.stringify(user)); } catch {}
-      set({ currentUser: user });
+      const landingPage = role === 'admin' ? 'dashboard' : role === 'parent' ? 'parent-home' : 'driver-home';
+      set({ currentUser: user, currentPage: landingPage });
       return true;
     }
     return false;
