@@ -9,6 +9,17 @@ export type EscalationLevel = 'primary' | 'secondary' | 'authority';
 export type TripStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 export type DriverEyeStatus = 'open' | 'closed' | 'squinting';
 export type DriverAttention = 'normal' | 'distracted' | 'absent';
+export type UserRole = 'admin' | 'parent' | 'driver';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  studentIds?: string[];
+  driverId?: string;
+  assignedVehicleId?: string;
+}
 
 export type DriverMonitoringStateType =
   | 'initializing'

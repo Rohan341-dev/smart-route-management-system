@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType } from '../data/types';
+import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents } from '../data/mockData';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -17,6 +17,11 @@ function getResolvedTheme(theme: Theme): 'light' | 'dark' {
 }
 
 interface AppState {
+  // Auth state
+  currentUser: User | null;
+  login: (email: string, password: string, role: UserRole) => boolean;
+  logout: () => void;
+
   vehicles: Vehicle[];
   drivers: Driver[];
   students: Student[];
@@ -106,6 +111,44 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  // Auth
+  currentUser: (() => {
+    try {
+      const saved = localStorage.getItem('smartbus-user-session');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  })(),
+
+  login: (email, password, role) => {
+    const demoAccounts: Record<string, { password: string; user: User }> = {
+      'admin@smartbus.demo': {
+        password: 'admin123',
+        user: { id: 'ADM-01', name: 'School Admin', email: 'admin@smartbus.demo', role: 'admin' },
+      },
+      'parent@smartbus.demo': {
+        password: 'parent123',
+        user: { id: 'PAR-01', name: 'Ram Sharma', email: 'parent@smartbus.demo', role: 'parent', studentIds: ['STU-001', 'STU-002', 'STU-003'] },
+      },
+      'driver@smartbus.demo': {
+        password: 'driver123',
+        user: { id: 'DRV-07', name: 'Suresh Magar', email: 'driver@smartbus.demo', role: 'driver', driverId: 'DRV-07', assignedVehicleId: 'BUS-107' },
+      },
+    };
+
+    const account = demoAccounts[email.toLowerCase()];
+    if (account && account.password === password) {
+      const user = { ...account.user, role };
+      try { localStorage.setItem('smartbus-user-session', JSON.stringify(user)); } catch {}
+      set({ currentUser: user });
+      return true;
+    }
+    return false;
+  },
+
+  logout: () => {
+    try { localStorage.removeItem('smartbus-user-session'); } catch {}
+    set({ currentUser: null, currentPage: 'dashboard' });
+  },
   vehicles: initialVehicles,
   drivers: initialDrivers,
   students: initialStudents,
