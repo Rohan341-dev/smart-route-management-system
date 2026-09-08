@@ -51,44 +51,12 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
         return;
       }
 
-      let cameras;
-      try {
-        cameras = await Html5Qrcode.getCameras();
-      } catch {
-        setCameraStatus('unavailable');
-        setCameraError('Could not enumerate cameras. Check browser permissions.');
-        return;
-      }
-
-      if (!cameras || cameras.length === 0) {
-        setCameraStatus('unavailable');
-        setCameraError('No cameras found on this device.');
-        return;
-      }
-
-      let preferredCamera = null;
-      if (facingMode === 'environment') {
-        preferredCamera = cameras.find(c => {
-          const label = (c.label || '').toLowerCase();
-          return label.includes('back') || label.includes('rear') || label.includes('environment') || label.includes('trouver');
-        });
-        if (!preferredCamera && cameras.length > 1) {
-          preferredCamera = cameras[cameras.length - 1];
-        }
-      } else {
-        preferredCamera = cameras.find(c => {
-          const label = (c.label || '').toLowerCase();
-          return label.includes('front') || label.includes('user') || label.includes('face');
-        });
-      }
-
-      const cameraId = preferredCamera?.id || cameras[0].id;
-
       const scanner = new Html5Qrcode('qr-reader');
       scannerRef.current = scanner;
 
+      // Use facingMode directly — browser handles camera selection + permission prompt
       await scanner.start(
-        cameraId,
+        { facingMode },
         {
           fps: 10,
           qrbox: { width: 250, height: 250 },
@@ -115,19 +83,16 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
       let errorMsg = 'Unable to start QR scanner. Try again.';
       let status: CameraStatus = 'error';
 
-      if (err.name === 'NotAllowedError' || err.message?.includes('Permission')) {
-        errorMsg = 'Camera permission denied. Please allow camera access in your browser settings and reload.';
+      if (err.name === 'NotAllowedError' || err.message?.includes('Permission') || err.message?.includes('permission')) {
+        errorMsg = 'Camera permission denied. Please allow camera access and try again.';
         status = 'denied';
-      } else if (err.name === 'NotFoundError' || err.message?.includes('not found')) {
+      } else if (err.name === 'NotFoundError' || err.message?.includes('not found') || err.message?.includes('Requested device not found')) {
         errorMsg = 'No camera found on this device.';
         status = 'unavailable';
       } else if (err.name === 'NotReadableError') {
         errorMsg = 'Camera is in use by another application.';
         status = 'error';
-      } else if (err.message?.includes('Permission')) {
-        errorMsg = 'Camera permission denied. Please allow camera access.';
-        status = 'denied';
-      } else if (err.message?.includes('secure context')) {
+      } else if (err.message?.includes('secure context') || err.message?.includes('HTTPS')) {
         errorMsg = 'Camera requires HTTPS. Open this page via HTTPS.';
         status = 'error';
       }
@@ -228,8 +193,8 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
               </div>
             ) : cameraStatus === 'starting' ? (
               <div className="text-center">
-                <p className="text-xs text-amber-400 mb-1">Initializing camera...</p>
-                <p className="text-[10px] dark:text-gray-500 text-surface-500">Please allow camera access when prompted</p>
+                <p className="text-xs text-amber-400 mb-1">Starting camera...</p>
+                <p className="text-[10px] dark:text-gray-500 text-surface-500">Tap "Allow" when prompted</p>
               </div>
             ) : (
               <div className="text-center">
