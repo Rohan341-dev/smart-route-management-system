@@ -15,7 +15,7 @@ class ListAttendanceView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        qs = Attendance.objects_all().select_related(
+        qs = AttendanceRecord.objects.select_related(
             'student', 'bus', 'route', 'driver',
         )
         bus_id = self.request.query_params.get('bus')
@@ -28,10 +28,6 @@ class ListAttendanceView(generics.ListAPIView):
         if date:
             qs = qs.filter(timestamp__date=date)
         return qs
-
-
-# alias for clarity
-Attendance = AttendanceRecord
 
 
 class ScanStudentQRView(APIView):
