@@ -1,24 +1,33 @@
-<IfModule mod_rewrite.c>
-  RewriteEngine On
+RewriteEngine On
+RewriteBase /
 
-  RewriteRule \.(css|js|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|json|bin|map)$ - [L]
+# Handle API requests (proxy to backend if needed)
+RewriteRule ^api/(.*)$ - [L]
 
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule ^ /index.html [L]
-</IfModule>
+# Handle routing - serve index.html for all routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.html [L]
 
 # Enable gzip compression
 <IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
 </IfModule>
 
 # Cache static assets
 <IfModule mod_expires.c>
   ExpiresActive On
-  ExpiresByType application/javascript "access plus 1 year"
   ExpiresByType text/css "access plus 1 year"
-  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
   ExpiresByType image/png "access plus 1 year"
-  ExpiresByType image/jpg "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType application/json "access plus 0 seconds"
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-XSS-Protection "1; mode=block"
 </IfModule>
