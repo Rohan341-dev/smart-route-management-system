@@ -96,7 +96,12 @@ interface AppState {
   updateUser: (userId: string, updates: Partial<User>) => void;
 
   // Vehicle management actions
+  addBus: (bus: Vehicle) => void;
   updateVehicle: (vehicleId: string, updates: Partial<Vehicle>) => void;
+
+  // Route management actions
+  addRoute: (route: Route) => void;
+  updateRoute: (routeId: string, updates: Partial<Route>) => void;
 
   // Demo simulation actions
   simulateBusMovement: () => void;
@@ -823,6 +828,31 @@ export const useStore = create<AppState>((set, get) => ({
     }));
   },
 
+  addBus: (bus) => {
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    set((s) => ({
+      vehicles: [...s.vehicles, bus],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'vehicle',
+        message: `New bus ${bus.id} added — ${bus.plateNumber}`,
+        time: now,
+        icon: 'truck',
+        severity: 'success' as const,
+      }, ...s.activityLogs],
+      notifications: [{
+        id: `NOT-${Date.now()}`,
+        type: 'vehicle' as const,
+        title: 'Bus Added',
+        message: `Bus ${bus.id} (${bus.plateNumber}) added to fleet`,
+        time: now,
+        read: false,
+        severity: 'info' as const,
+        vehicleId: bus.id,
+      }, ...s.notifications],
+    }));
+  },
+
   updateVehicle: (vehicleId, updates) => {
     set((s) => ({
       vehicles: s.vehicles.map(v => v.id === vehicleId ? { ...v, ...updates } : v),
@@ -832,6 +862,35 @@ export const useStore = create<AppState>((set, get) => ({
         message: `Bus ${vehicleId} assignment updated`,
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         icon: 'truck',
+        severity: 'info' as const,
+      }, ...s.activityLogs],
+    }));
+  },
+
+  addRoute: (route) => {
+    const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    set((s) => ({
+      routes: [...s.routes, route],
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'route',
+        message: `New route "${route.name}" created — ${route.stops.length} stops, ${route.distance}`,
+        time: now,
+        icon: 'route',
+        severity: 'success' as const,
+      }, ...s.activityLogs],
+    }));
+  },
+
+  updateRoute: (routeId, updates) => {
+    set((s) => ({
+      routes: s.routes.map(r => r.id === routeId ? { ...r, ...updates } : r),
+      activityLogs: [{
+        id: `LOG-${Date.now()}`,
+        type: 'route',
+        message: `Route ${routeId} updated`,
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        icon: 'route',
         severity: 'info' as const,
       }, ...s.activityLogs],
     }));

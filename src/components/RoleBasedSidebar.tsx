@@ -6,6 +6,7 @@ const adminNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'live-fleet', label: 'Live Fleet', icon: MapPin },
   { id: 'routes', label: 'Routes', icon: Route },
+  { id: 'route-management', label: 'Route Maps', icon: Map },
   { id: 'vehicles', label: 'Vehicles', icon: Truck },
   { id: 'drivers', label: 'Drivers', icon: Users },
   { id: 'students', label: 'Students', icon: GraduationCap },

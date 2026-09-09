@@ -23,6 +23,7 @@ import DemoPanel from './components/DemoPanel';
 import UserManagement from './pages/admin/UserManagement';
 import BusManagement from './pages/admin/BusManagement';
 import AssignmentScreen from './pages/admin/AssignmentScreen';
+import RouteManagement from './pages/admin/RouteManagement';
 import ParentDashboard from './pages/parent/ParentDashboard';
 import TrackBus from './pages/parent/TrackBus';
 import MyChildren from './pages/parent/MyChildren';
@@ -69,6 +70,7 @@ function AdminApp() {
       case 'user-management': return <UserManagement />;
       case 'bus-management': return <BusManagement />;
       case 'bus-assignment': return <AssignmentScreen />;
+      case 'route-management': return <RouteManagement />;
       default: return <Dashboard />;
     }
   };

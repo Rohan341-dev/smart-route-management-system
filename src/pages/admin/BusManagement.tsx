@@ -14,7 +14,7 @@ const statusColors: Record<VehicleStatus, string> = {
 };
 
 export default function BusManagement() {
-  const { vehicles, drivers, routes, students, users, updateVehicle } = useStore();
+  const { vehicles, drivers, routes, students, users, addBus, updateVehicle } = useStore();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -67,15 +67,45 @@ export default function BusManagement() {
   const handleSave = () => {
     if (!formData.id || !formData.plateNumber) return;
 
+    const routeName = routes.find(r => r.id === formData.assignedRoute)?.name || formData.routeName;
+
     if (editingBus) {
       updateVehicle(editingBus.id, {
         ...formData,
         registrationNumber: formData.registrationNumber || formData.plateNumber,
-        routeName: routes.find(r => r.id === formData.assignedRoute)?.name || formData.routeName,
+        routeName,
       });
+    } else {
+      const newBus: Vehicle = {
+        id: formData.id,
+        registrationNumber: formData.registrationNumber || formData.plateNumber,
+        type: formData.type,
+        capacity: formData.capacity,
+        assignedDriver: formData.assignedDriver,
+        assignedRoute: formData.assignedRoute,
+        gpsDeviceId: formData.gpsDeviceId,
+        dashCameraId: formData.dashCameraId,
+        status: formData.status,
+        lastActive: new Date().toISOString(),
+        maintenanceDate: '',
+        insuranceExpiry: '',
+        fitnessExpiry: '',
+        lat: 26.7737,
+        lng: 85.9520,
+        currentLat: 26.7737,
+        currentLng: 85.9520,
+        speed: 0,
+        heading: 0,
+        currentStudents: 0,
+        lastUpdate: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        routeName,
+        plateNumber: formData.plateNumber,
+      };
+      addBus(newBus);
     }
     setShowForm(false);
     setEditingBus(null);
+    setFormData({ id: '', registrationNumber: '', type: 'School Bus', capacity: 40, plateNumber: '', routeName: '', assignedDriver: '', assignedRoute: '', gpsDeviceId: '', dashCameraId: '', status: 'idle' });
   };
 
   const toggleBusStatus = (bus: Vehicle) => {
