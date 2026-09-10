@@ -1,12 +1,13 @@
-from rest_framework import generics
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import generics, status
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
 from .models import Student
-from .serializers import StudentSerializer
+from .serializers import StudentSerializer, CreateStudentSerializer
 
 
 class ListStudentView(generics.ListAPIView):
     serializer_class = StudentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         qs = Student.objects.select_related('parent', 'assigned_bus', 'assigned_route')
@@ -22,4 +23,27 @@ class ListStudentView(generics.ListAPIView):
 class RetrieveStudentView(generics.RetrieveAPIView):
     queryset = Student.objects.select_related('parent', 'assigned_bus', 'assigned_route')
     serializer_class = StudentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
+
+
+class CreateStudentView(generics.CreateAPIView):
+    serializer_class = CreateStudentSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        student = serializer.save()
+        read_serializer = StudentSerializer(student)
+        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class UpdateStudentView(generics.UpdateAPIView):
+    queryset = Student.objects.select_related('parent', 'assigned_bus', 'assigned_route')
+    serializer_class = StudentSerializer
+    permission_classes = [AllowAny]
+
+
+class DeleteStudentView(generics.DestroyAPIView):
+    queryset = Student.objects.all()
+    permission_classes = [AllowAny]

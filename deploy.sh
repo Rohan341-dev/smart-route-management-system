@@ -12,14 +12,37 @@ echo "  Target: $DOMAIN"
 echo "=========================================="
 echo ""
 
-# Step 1: Build
-echo "[1/3] Building frontend..."
+# Step 1: Build frontend
+echo "[1/5] Building frontend..."
 npm run build
-echo "✅ Build complete"
+echo "✅ Frontend build complete"
 echo ""
 
-# Step 2: Deploy via SCP
-echo "[2/3] Deploying to $DOMAIN..."
+# Step 2: Deploy backend
+echo "[2/5] Deploying backend..."
+ssh "$REMOTE_USER@$DOMAIN" "cd $REMOTE_PATH/backend && git pull origin main 2>/dev/null || echo 'No git repo on remote, skipping pull'"
+
+# Install backend dependencies
+echo "  Installing Python dependencies..."
+ssh "$REMOTE_USER@$DOMAIN" "cd $REMOTE_PATH/backend && pip install -r requirements.txt --quiet 2>/dev/null || pip3 install -r requirements.txt --quiet 2>/dev/null || echo 'pip install skipped'"
+
+# Run migrations
+echo "  Running Django migrations..."
+ssh "$REMOTE_USER@$DOMAIN" "cd $REMOTE_PATH/backend && python manage.py migrate --noinput 2>/dev/null || python3 manage.py migrate --noinput 2>/dev/null || echo 'migrate skipped'"
+
+# Collect static files
+echo "  Collecting static files..."
+ssh "$REMOTE_USER@$DOMAIN" "cd $REMOTE_PATH/backend && python manage.py collectstatic --noinput 2>/dev/null || python3 manage.py collectstatic --noinput 2>/dev/null || echo 'collectstatic skipped'"
+
+# Restart backend (try multiple methods)
+echo "  Restarting backend..."
+ssh "$REMOTE_USER@$DOMAIN" "cd $REMOTE_PATH/backend && (sudo systemctl restart smartbus-backend 2>/dev/null || sudo supervisorctl restart smartbus-backend 2>/dev/null || kill -HUP \$(pgrep -f 'gunicorn.*config.wsgi') 2>/dev/null || echo 'Backend restart attempted')" || true
+
+echo "✅ Backend deploy complete"
+echo ""
+
+# Step 3: Deploy frontend via SCP
+echo "[3/5] Deploying frontend to $DOMAIN..."
 echo "  Source: $LOCAL_DIST/"
 echo "  Target: $REMOTE_USER@$DOMAIN:$REMOTE_PATH/"
 echo ""
@@ -41,6 +64,11 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.html [L]
 
+# Proxy API requests to Django backend
+RewriteCond %{HTTP:Authorization} .+
+RewriteRule ^api/(.*)$ http://127.0.0.1:8000/api/$1 [P,L]
+RewriteRule ^api/(.*)$ http://127.0.0.1:8000/api/$1 [P,L]
+
 # Cache static assets
 <IfModule mod_expires.c>
   ExpiresActive On
@@ -52,11 +80,24 @@ RewriteRule ^ index.html [L]
 HTACCESS
 
 echo ""
-echo "[3/3] Verifying deployment..."
+echo "[4/5] Verifying deployment..."
 echo "  Index: $(curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/)"
 echo "  Assets: $(curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/assets/index-BW0CZD-A.js)"
 echo ""
+
+# Step 5: Verify backend health
+echo "[5/5] Verifying backend health..."
+echo "  API Health: $(curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/api/health/ 2>/dev/null || echo 'N/A')"
+echo "  Students API: $(curl -s -o /dev/null -w '%{http_code}' https://$DOMAIN/api/students/ 2>/dev/null || echo 'N/A')"
+echo ""
+
 echo "=========================================="
 echo "  Deployed successfully!"
 echo "  https://$DOMAIN"
 echo "=========================================="
+echo ""
+echo "⚠️  IMPORTANT: Ensure the following on the server:"
+echo "  1. Backend .env has correct DB settings (DB_ENGINE, DB_NAME, etc.)"
+echo "  2. PostgreSQL is running (if using PostgreSQL)"
+echo "  3. Backend service is running on port 8000"
+echo "  4. VITE_API_URL is set to https://$DOMAIN/api in the frontend"

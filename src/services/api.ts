@@ -69,6 +69,25 @@ export const studentsAPI = {
   list: () => apiRequest<any[]>('/students/'),
   get: (id: string) => apiRequest<any>(`/students/${id}/`),
   getByBus: (busId: string) => apiRequest<any[]>(`/students/?bus=${busId}`),
+  create: (data: {
+    full_name: string;
+    class_name: string;
+    section?: string;
+    parent_name: string;
+    parent_phone: string;
+    assigned_bus?: string;
+    assigned_route?: string;
+  }) => apiRequest<any>('/students/create/', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  update: (id: string, data: any) => apiRequest<any>(`/students/${id}/update/`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  delete: (id: string) => apiRequest<void>(`/students/${id}/delete/`, {
+    method: 'DELETE',
+  }),
 };
 
 // Routes

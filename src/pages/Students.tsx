@@ -1,17 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer } from 'lucide-react';
+import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle } from 'lucide-react';
 import StudentQRCode from '../components/StudentQRCode';
 import { Student } from '../data/types';
 
 export default function Students() {
-  const { students, addStudent, vehicles, routes } = useStore();
+  const { students, addStudent, fetchStudents, vehicles, routes } = useStore();
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterBus, setFilterBus] = useState('all');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     class: '',
@@ -23,6 +25,10 @@ export default function Students() {
     pickupStop: '',
     dropStop: '',
   });
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
   const filtered = students.filter(s => {
     const matchSearch = s.fullName.toLowerCase().includes(search.toLowerCase()) || s.id.toLowerCase().includes(search.toLowerCase());
@@ -50,26 +56,34 @@ export default function Students() {
     total: students.length,
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.class || !formData.parentName || !formData.parentPhone || !formData.assignedBus || !formData.assignedRouteId) return;
-    const student = addStudent({
-      fullName: formData.fullName,
-      class: formData.class,
-      section: formData.section,
-      parentName: formData.parentName,
-      parentPhone: formData.parentPhone,
-      assignedBus: formData.assignedBus,
-      route: formData.assignedRouteId,
-      assignedVehicleId: formData.assignedBus,
-      assignedRouteId: formData.assignedRouteId,
-      pickupStop: formData.pickupStop,
-      dropStop: formData.dropStop,
-    });
-    setCreatedStudent(student);
-    setShowAddForm(false);
-    setShowSuccess(true);
-    setFormData({ fullName: '', class: '', section: '', parentName: '', parentPhone: '', assignedBus: '', assignedRouteId: '', pickupStop: '', dropStop: '' });
+    setSubmitting(true);
+    setError('');
+    try {
+      const student = await addStudent({
+        fullName: formData.fullName,
+        class: formData.class,
+        section: formData.section,
+        parentName: formData.parentName,
+        parentPhone: formData.parentPhone,
+        assignedBus: formData.assignedBus,
+        route: formData.assignedRouteId,
+        assignedVehicleId: formData.assignedBus,
+        assignedRouteId: formData.assignedRouteId,
+        pickupStop: formData.pickupStop,
+        dropStop: formData.dropStop,
+      });
+      setCreatedStudent(student);
+      setShowAddForm(false);
+      setShowSuccess(true);
+      setFormData({ fullName: '', class: '', section: '', parentName: '', parentPhone: '', assignedBus: '', assignedRouteId: '', pickupStop: '', dropStop: '' });
+    } catch (err: any) {
+      setError(err.message || 'Failed to create student. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const assignedRoute = createdStudent ? routes.find(r => r.id === createdStudent.assignedRouteId) : null;
@@ -260,12 +274,19 @@ export default function Students() {
                 <span className="text-xs dark:text-electric-400 text-electric-600 font-bold">QR Attendance: AUTO-ENABLED</span>
               </div>
 
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                  <span className="text-xs text-red-400">{error}</span>
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button type="button" onClick={() => setShowAddForm(false)} className="flex-1 py-2.5 rounded-xl dark:bg-navy-700 bg-surface-100 dark:text-gray-300 text-surface-600 text-xs font-bold hover:dark:bg-navy-600 hover:bg-surface-200 transition-all">
                   Cancel
                 </button>
-                <button type="submit" className="flex-1 btn-primary py-2.5">
-                  Create Student & Generate QR
+                <button type="submit" disabled={submitting} className="flex-1 btn-primary py-2.5 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {submitting ? 'Creating...' : 'Create Student & Generate QR'}
                 </button>
               </div>
             </form>

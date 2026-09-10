@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, UserStatus, TripStatus, StopStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents, users as initialUsers } from '../data/mockData';
-import { attendanceAPI } from '../services/api';
+import { attendanceAPI, studentsAPI } from '../services/api';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -89,7 +89,8 @@ interface AppState {
   getAttendanceByVehicle: (vehicleId: string) => Student[];
 
   // Student management actions
-  addStudent: (data: Omit<Student, 'id' | 'studentId' | 'qrCode' | 'qrId' | 'qrEnabled' | 'status' | 'attendanceStatus' | 'attendanceHistory' | 'createdAt'>) => Student;
+  fetchStudents: () => Promise<void>;
+  addStudent: (data: Omit<Student, 'id' | 'studentId' | 'qrCode' | 'qrId' | 'qrEnabled' | 'status' | 'attendanceStatus' | 'attendanceHistory' | 'createdAt'>) => Promise<Student>;
 
   // User management actions
   addUser: (user: User) => void;
@@ -754,26 +755,79 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   // Student management
-  addStudent: (data) => {
-    const state = get();
-    const nextNum = state.students.length + 1;
-    const paddedNum = String(nextNum).padStart(3, '0');
-    const studentId = `STU-${paddedNum}`;
-    const qrId = `SMARTBUS-2026-${studentId}`;
-    const qrCode = qrId;
+  fetchStudents: async () => {
+    const result = await studentsAPI.list();
+    if (result.error) {
+      console.error('Failed to fetch students:', result.error);
+      return;
+    }
+    const apiStudents = result.data || [];
+    const students: Student[] = apiStudents.map((s: any) => ({
+      id: `STU-${String(s.id).padStart(3, '0')}`,
+      studentId: s.student_id,
+      fullName: s.full_name,
+      class: s.class_name,
+      section: s.section || '',
+      parentName: s.parent_name || '',
+      parentPhone: '',
+      assignedBus: s.assigned_bus_number || '',
+      assignedVehicleId: s.assigned_bus_number || '',
+      assignedRouteId: s.assigned_route_name || '',
+      route: s.assigned_route_name || '',
+      pickupStop: '',
+      dropStop: '',
+      qrCode: s.qr_id,
+      qrId: s.qr_id,
+      qrEnabled: s.qr_enabled,
+      status: 'waiting' as any,
+      attendanceStatus: s.attendance_status || 'waiting' as any,
+      attendanceHistory: [],
+      createdAt: s.created_at,
+    }));
+    set({ students });
+  },
+
+  addStudent: async (data) => {
+    const result = await studentsAPI.create({
+      full_name: data.fullName,
+      class_name: data.class,
+      section: data.section,
+      parent_name: data.parentName,
+      parent_phone: data.parentPhone,
+      assigned_bus: data.assignedBus,
+      assigned_route: data.assignedRouteId,
+    });
+
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    const apiStudent = result.data;
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const studentId = apiStudent.student_id;
+    const qrId = apiStudent.qr_id;
 
     const newStudent: Student = {
-      ...data,
-      id: studentId,
+      id: `STU-${String(apiStudent.id).padStart(3, '0')}`,
       studentId,
-      qrCode,
+      fullName: apiStudent.full_name,
+      class: apiStudent.class_name,
+      section: apiStudent.section || '',
+      parentName: apiStudent.parent_name || '',
+      parentPhone: data.parentPhone,
+      assignedBus: data.assignedBus,
+      assignedVehicleId: data.assignedBus,
+      assignedRouteId: data.assignedRouteId,
+      route: data.assignedRouteId,
+      pickupStop: data.pickupStop,
+      dropStop: data.dropStop,
+      qrCode: qrId,
       qrId,
-      qrEnabled: true,
+      qrEnabled: apiStudent.qr_enabled,
       status: 'waiting',
       attendanceStatus: 'waiting',
       attendanceHistory: [],
-      createdAt: now,
+      createdAt: apiStudent.created_at,
     };
 
     set((s) => ({
