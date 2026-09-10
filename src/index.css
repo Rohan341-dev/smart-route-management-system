@@ -210,3 +210,26 @@ input[type="range"] {
     @apply rounded-xl;
   }
 }
+
+/* Print styles for ID cards and QR cards */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #student-id-card,
+  #student-qr-card,
+  #student-id-card *,
+  #student-qr-card * {
+    visibility: visible;
+  }
+  #student-id-card,
+  #student-qr-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+    background: white !important;
+  }
+}

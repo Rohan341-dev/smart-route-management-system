@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle, Camera, User } from 'lucide-react';
+import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle, Camera, User, CreditCard, MoreVertical, Download } from 'lucide-react';
 import StudentQRCode from '../components/StudentQRCode';
+import StudentIDCard from '../components/StudentIDCard';
+import StudentQRCard from '../components/StudentQRCard';
 import { Student } from '../data/types';
 
 export default function Students() {
@@ -17,6 +19,10 @@ export default function Students() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showIDCard, setShowIDCard] = useState(false);
+  const [showQRCard, setShowQRCard] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [openMobileMenu, setOpenMobileMenu] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     class: '',
@@ -176,6 +182,7 @@ export default function Students() {
                 <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Status</th>
                 <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Parent</th>
                 <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">QR</th>
+                <th className="text-left text-xs font-bold dark:text-gray-400 text-surface-500 uppercase px-4 py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -217,6 +224,48 @@ export default function Students() {
                   </td>
                   <td className="px-4 py-3">
                     <StudentQRCode student={s} compact />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => { setSelectedStudent(s); setShowIDCard(true); }}
+                        className="hidden md:flex w-7 h-7 rounded-lg bg-electric-600/20 items-center justify-center hover:bg-electric-600/30 transition-all"
+                        title="ID Card"
+                      >
+                        <CreditCard className="w-3.5 h-3.5 text-electric-400" />
+                      </button>
+                      <button
+                        onClick={() => { setSelectedStudent(s); setShowQRCard(true); }}
+                        className="hidden md:flex w-7 h-7 rounded-lg bg-emerald-600/20 items-center justify-center hover:bg-emerald-600/30 transition-all"
+                        title="QR Card"
+                      >
+                        <Download className="w-3.5 h-3.5 text-emerald-400" />
+                      </button>
+                      <div className="relative md:hidden">
+                        <button
+                          onClick={() => setOpenMobileMenu(openMobileMenu === s.id ? null : s.id)}
+                          className="w-7 h-7 rounded-lg dark:bg-navy-700 bg-surface-100 flex items-center justify-center hover:dark:bg-navy-600 hover:bg-surface-200 transition-all"
+                        >
+                          <MoreVertical className="w-3.5 h-3.5 dark:text-gray-400 text-surface-500" />
+                        </button>
+                        {openMobileMenu === s.id && (
+                          <div className="absolute right-0 top-8 z-40 dark:bg-navy-700 bg-white dark:border-white/10 border-surface-200 border rounded-xl shadow-xl py-1 min-w-[120px]">
+                            <button
+                              onClick={() => { setSelectedStudent(s); setShowIDCard(true); setOpenMobileMenu(null); }}
+                              className="w-full px-3 py-2 text-left text-xs dark:text-white text-surface-900 hover:dark:bg-white/10 hover:bg-surface-100 flex items-center gap-2"
+                            >
+                              <CreditCard className="w-3 h-3" /> ID Card
+                            </button>
+                            <button
+                              onClick={() => { setSelectedStudent(s); setShowQRCard(true); setOpenMobileMenu(null); }}
+                              className="w-full px-3 py-2 text-left text-xs dark:text-white text-surface-900 hover:dark:bg-white/10 hover:bg-surface-100 flex items-center gap-2"
+                            >
+                              <Download className="w-3 h-3" /> QR Card
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -416,13 +465,23 @@ export default function Students() {
                 <button onClick={() => { setShowSuccess(false); setCreatedStudent(null); }} className="flex-1 py-2.5 rounded-xl dark:bg-navy-700 bg-surface-100 dark:text-gray-300 text-surface-600 text-xs font-bold hover:dark:bg-navy-600 hover:bg-surface-200 transition-all">
                   Done
                 </button>
-                <button onClick={() => { setShowSuccess(false); setCreatedStudent(null); }} className="flex-1 btn-primary py-2.5 text-[10px] flex items-center justify-center gap-1">
+                <button onClick={() => { setSelectedStudent(createdStudent); setShowQRCard(true); setShowSuccess(false); setCreatedStudent(null); }} className="flex-1 btn-primary py-2.5 text-[10px] flex items-center justify-center gap-1">
                   <Printer className="w-3 h-3" /> Print QR
                 </button>
               </div>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Student ID Card Modal */}
+      {showIDCard && selectedStudent && (
+        <StudentIDCard student={selectedStudent} onClose={() => { setShowIDCard(false); setSelectedStudent(null); }} />
+      )}
+
+      {/* Student QR Card Modal */}
+      {showQRCard && selectedStudent && (
+        <StudentQRCard student={selectedStudent} onClose={() => { setShowQRCard(false); setSelectedStudent(null); }} />
       )}
     </div>
   );

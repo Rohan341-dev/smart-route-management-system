@@ -56,6 +56,7 @@ interface AppState {
   selectedTripStage: TripStage;
   lastScannedStudentId: string | null;
   lastScanResult: { success: boolean; message: string; student?: Student } | null;
+  processingScan: boolean;
 
   setSelectedVehicle: (id: string | null) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -81,9 +82,10 @@ interface AppState {
   setSelectedTripStage: (stage: TripStage) => void;
   startAttendanceSession: () => void;
   stopAttendanceSession: () => void;
-  scanStudentQR: (qrCode: string) => void;
+  scanStudentQR: (qrCode: string) => Promise<void>;
   markStudentAbsent: (studentId: string) => void;
   clearLastScanResult: () => void;
+  fetchAttendanceRecords: () => Promise<void>;
   getStudentsOnBus: (vehicleId: string) => Student[];
   getBusOccupancy: (vehicleId: string) => { total: number; capacity: number; pickedUp: number; onBus: number; dropped: number; absent: number };
   getAttendanceByVehicle: (vehicleId: string) => Student[];
