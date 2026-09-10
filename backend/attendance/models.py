@@ -31,15 +31,21 @@ class AttendanceRecord(models.Model):
     )
     route = models.ForeignKey(
         'routes.Route',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='attendance_records',
     )
     driver = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='attendance_records',
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='waiting')
+    boarding_time = models.DateTimeField(null=True, blank=True)
+    drop_time = models.DateTimeField(null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     method = models.CharField(max_length=10, choices=METHOD_CHOICES, default='qr')
     trip_stage = models.CharField(max_length=10, choices=TRIP_STAGE_CHOICES, default='pickup')
@@ -47,6 +53,7 @@ class AttendanceRecord(models.Model):
     class Meta:
         db_table = 'attendance_record'
         ordering = ['-timestamp']
+        unique_together = ('student', 'bus', 'trip_stage')
 
     def __str__(self):
         return f"{self.student} - {self.status} ({self.timestamp})"

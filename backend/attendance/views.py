@@ -1,19 +1,19 @@
 import json
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
+from django.utils import timezone
 from .models import AttendanceRecord
 from .serializers import AttendanceRecordSerializer, QRScanSerializer
 from students.models import Student
-from fleet.models import Bus
 from notifications.models import Notification
 
 
 class ListAttendanceView(generics.ListAPIView):
     serializer_class = AttendanceRecordSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get_queryset(self):
         qs = AttendanceRecord.objects.select_related(
@@ -32,7 +32,7 @@ class ListAttendanceView(generics.ListAPIView):
 
 
 class ScanStudentQRView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     @transaction.atomic
     def post(self, request):
@@ -70,7 +70,7 @@ class ScanStudentQRView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Derive bus from student's assigned bus (don't trust frontend bus_id)
+        # Derive bus from student's assigned bus
         bus = student.assigned_bus
         if not bus:
             return Response(
@@ -78,7 +78,8 @@ class ScanStudentQRView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Determine status and trip_stage
+        # Determine status, trip_stage, and time
+        now = timezone.now()
         if action == 'pick':
             new_status = 'picked_up'
             trip_stage = 'pickup'
@@ -86,16 +87,30 @@ class ScanStudentQRView(APIView):
             new_status = 'dropped'
             trip_stage = 'dropoff'
 
-        # Create attendance record
-        record = AttendanceRecord.objects.create(
+        # Find or create today's attendance record for this student/bus/trip_stage
+        today = now.date()
+        record, created = AttendanceRecord.objects.get_or_create(
             student=student,
             bus=bus,
-            route=bus.assigned_route,
-            driver=request.user,
-            status=new_status,
-            method='qr',
             trip_stage=trip_stage,
+            timestamp__date=today,
+            defaults={
+                'route': bus.assigned_route,
+                'status': new_status,
+                'method': 'qr',
+                'boarding_time': now if action == 'pick' else None,
+                'drop_time': now if action == 'drop' else None,
+            },
         )
+
+        if not created:
+            # Update existing record
+            record.status = new_status
+            if action == 'pick':
+                record.boarding_time = now
+            else:
+                record.drop_time = now
+            record.save(update_fields=['status', 'boarding_time', 'drop_time', 'updated_at'])
 
         # Update student attendance_status
         student.attendance_status = new_status

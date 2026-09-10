@@ -94,6 +94,10 @@ export const studentsAPI = {
 export const routesAPI = {
   list: () => apiRequest<any[]>('/routes/'),
   get: (id: string) => apiRequest<any>(`/routes/${id}/`),
+  create: (data: { name: string; distance?: number; estimated_time?: number; total_students?: number; stops?: Array<{ name: string; lat: number; lng: number; order: number; stop_type: string; students_count: number }> }) =>
+    apiRequest<any>('/routes/create/', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: any) => apiRequest<any>(`/routes/${id}/update/`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id: string) => apiRequest<void>(`/routes/${id}/delete/`, { method: 'DELETE' }),
 };
 
 // Trips
