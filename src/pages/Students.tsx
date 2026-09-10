@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle } from 'lucide-react';
+import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle, Camera } from 'lucide-react';
 import StudentQRCode from '../components/StudentQRCode';
 import { Student } from '../data/types';
 
@@ -14,6 +14,9 @@ export default function Students() {
   const [createdStudent, setCreatedStudent] = useState<Student | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     class: '',
@@ -56,6 +59,30 @@ export default function Students() {
     total: students.length,
   };
 
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Photo must be under 5MB');
+      return;
+    }
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Photo must be JPG, PNG, or WebP');
+      return;
+    }
+    setPhotoFile(file);
+    setError('');
+    const reader = new FileReader();
+    reader.onload = () => setPhotoPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.class || !formData.parentName || !formData.parentPhone || !formData.assignedBus || !formData.assignedRouteId) return;
@@ -74,11 +101,13 @@ export default function Students() {
         assignedRouteId: formData.assignedRouteId,
         pickupStop: formData.pickupStop,
         dropStop: formData.dropStop,
-      });
+        photoFile: photoFile || undefined,
+      } as any);
       setCreatedStudent(student);
       setShowAddForm(false);
       setShowSuccess(true);
       setFormData({ fullName: '', class: '', section: '', parentName: '', parentPhone: '', assignedBus: '', assignedRouteId: '', pickupStop: '', dropStop: '' });
+      removePhoto();
     } catch (err: any) {
       setError(err.message || 'Failed to create student. Please try again.');
     } finally {
@@ -154,12 +183,16 @@ export default function Students() {
                 <tr key={s.id} className="border-b dark:border-white/5 border-surface-200 dark:hover:bg-white/5 hover:bg-surface-50 transition-all">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-electric-600/20 flex items-center justify-center">
-                        <span className="text-xs font-bold text-electric-400">{s.fullName[0]}</span>
-                      </div>
+                      {s.photo ? (
+                        <img src={s.photo} alt={s.fullName} className="w-8 h-8 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-electric-600/20 flex items-center justify-center">
+                          <span className="text-xs font-bold text-electric-400">{s.fullName[0]}</span>
+                        </div>
+                      )}
                       <div>
                         <p className="text-xs font-bold dark:text-white text-surface-900">{s.fullName}</p>
-                        <p className="text-[10px] dark:text-gray-400 text-surface-500">{s.id}</p>
+                        <p className="text-[10px] dark:text-gray-400 text-surface-500">{s.studentId}</p>
                       </div>
                     </div>
                   </td>
