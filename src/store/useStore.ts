@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, UserStatus, TripStatus, StopStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents, users as initialUsers } from '../data/mockData';
-import { attendanceAPI, studentsAPI } from '../services/api';
+import { attendanceAPI, studentsAPI, routesAPI } from '../services/api';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -91,6 +91,10 @@ interface AppState {
   // Student management actions
   fetchStudents: () => Promise<void>;
   addStudent: (data: Omit<Student, 'id' | 'studentId' | 'qrCode' | 'qrId' | 'qrEnabled' | 'status' | 'attendanceStatus' | 'attendanceHistory' | 'createdAt'>) => Promise<Student>;
+
+  // Route management actions
+  fetchRoutes: () => Promise<void>;
+  createRoute: (data: { name: string; distance?: string; estimatedTime?: string; stops: RouteStop[] }) => Promise<void>;
 
   // User management actions
   addUser: (user: User) => void;
@@ -776,8 +780,8 @@ export const useStore = create<AppState>((set, get) => ({
       route: s.assigned_route_name || '',
       pickupStop: '',
       dropStop: '',
-      qrCode: s.qr_id,
-      qrId: s.qr_id,
+      qrCode: `SMARTBUS:STUDENT:${s.student_id}`,
+      qrId: `SMARTBUS:STUDENT:${s.student_id}`,
       qrEnabled: s.qr_enabled,
       status: 'waiting' as any,
       attendanceStatus: s.attendance_status || 'waiting' as any,
@@ -805,7 +809,6 @@ export const useStore = create<AppState>((set, get) => ({
     const apiStudent = result.data;
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const studentId = apiStudent.student_id;
-    const qrId = apiStudent.qr_id;
 
     const newStudent: Student = {
       id: `STU-${String(apiStudent.id).padStart(3, '0')}`,
@@ -821,8 +824,8 @@ export const useStore = create<AppState>((set, get) => ({
       route: data.assignedRouteId,
       pickupStop: data.pickupStop,
       dropStop: data.dropStop,
-      qrCode: qrId,
-      qrId,
+      qrCode: `SMARTBUS:STUDENT:${studentId}`,
+      qrId: `SMARTBUS:STUDENT:${studentId}`,
       qrEnabled: apiStudent.qr_enabled,
       status: 'waiting',
       attendanceStatus: 'waiting',
@@ -852,6 +855,65 @@ export const useStore = create<AppState>((set, get) => ({
     }));
 
     return newStudent;
+  },
+
+  fetchRoutes: async () => {
+    const result = await routesAPI.list();
+    if (result.error) {
+      console.error('Failed to fetch routes:', result.error);
+      return;
+    }
+    const apiRoutes = result.data || [];
+    const routes: Route[] = apiRoutes.map((r: any) => ({
+      id: `RT-${String(r.id).padStart(3, '0')}`,
+      name: r.name,
+      vehicleId: r.vehicle_number || '',
+      driverId: r.driver_name || '',
+      stops: (r.stops || []).map((s: any) => ({
+        id: `STOP-${s.id}`,
+        name: s.name,
+        lat: parseFloat(s.lat),
+        lng: parseFloat(s.lng),
+        time: s.time || '',
+        studentsCount: s.students_count || 0,
+        order: s.order,
+        type: s.stop_type as 'pickup' | 'dropoff' | 'both',
+      })),
+      totalStudents: r.total_students || 0,
+      estimatedTime: r.estimated_time ? `${r.estimated_time} min` : 'N/A',
+      distance: r.distance ? `${r.distance} km` : 'N/A',
+      status: r.status as 'active' | 'scheduled',
+    }));
+    set({ routes });
+  },
+
+  createRoute: async (data) => {
+    const distanceMatch = data.distance?.match(/([\d.]+)/);
+    const estimatedTimeMatch = data.estimatedTime?.match(/(\d+)/);
+    const payload = {
+      name: data.name,
+      distance: distanceMatch ? parseFloat(distanceMatch[1]) : 0,
+      estimated_time: estimatedTimeMatch ? parseInt(estimatedTimeMatch[1]) : 0,
+      total_students: 0,
+      stops: data.stops.map(s => ({
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+        order: s.order,
+        stop_type: s.type || 'pickup',
+        students_count: s.studentsCount || 0,
+        time: s.time || null,
+      })),
+    };
+
+    const result = await routesAPI.create(payload);
+    if (result.error) {
+      throw new Error(result.error);
+    }
+
+    // Refresh routes from API
+    const store = get();
+    await store.fetchRoutes();
   },
 
   addUser: (user) => {

@@ -95,7 +95,7 @@ function FlyTo({ center }: { center: [number, number] }) {
 }
 
 export default function RouteManagement() {
-  const { routes, addRoute, updateRoute } = useStore();
+  const { routes, addRoute, updateRoute, createRoute } = useStore();
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isMapClickMode, setIsMapClickMode] = useState(false);
   const [routeName, setRouteName] = useState('');
@@ -181,7 +181,7 @@ export default function RouteManagement() {
     }
   };
 
-  const handleSaveRoute = () => {
+  const handleSaveRoute = async () => {
     if (!routeName || !schoolLocation || stops.length === 0) return;
 
     if (editingRouteId) {
@@ -192,18 +192,16 @@ export default function RouteManagement() {
         distance: distance || 'N/A',
       });
     } else {
-      const newRoute: RouteType = {
-        id: `RT-${Date.now()}`,
-        name: routeName,
-        vehicleId: '',
-        driverId: '',
-        stops,
-        totalStudents: 0,
-        estimatedTime: estimatedTime || 'N/A',
-        distance: distance || 'N/A',
-        status: 'scheduled',
-      };
-      addRoute(newRoute);
+      try {
+        await createRoute({
+          name: routeName,
+          distance: distance || 'N/A',
+          estimatedTime: estimatedTime || 'N/A',
+          stops,
+        });
+      } catch (err) {
+        console.error('Failed to save route:', err);
+      }
     }
     setShowForm(false);
     resetForm();
