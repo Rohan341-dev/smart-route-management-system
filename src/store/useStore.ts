@@ -255,6 +255,7 @@ export const useStore = create<AppState>((set, get) => ({
   selectedTripStage: 'morning_pickup',
   lastScannedStudentId: null,
   lastScanResult: null,
+  processingScan: false,
 
   setSelectedVehicle: (id) => set({ selectedVehicle: id }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -567,148 +568,181 @@ export const useStore = create<AppState>((set, get) => ({
     };
   }),
 
-  scanStudentQR: (qrCode: string) => {
+  scanStudentQR: async (qrCode: string) => {
     const state = get();
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
     console.log('[ScanQR] Raw QR:', qrCode);
 
-    // Parse format: SMARTBUS:STUDENT:STU-001
-    let studentId = '';
-    if (qrCode.startsWith('SMARTBUS:STUDENT:')) {
-      studentId = qrCode.replace('SMARTBUS:STUDENT:', '').trim();
-    } else {
-      studentId = qrCode.trim();
-    }
-
-    console.log('[ScanQR] Extracted studentId:', studentId);
-
-    const student = state.students.find(s => s.studentId === studentId);
-
-    if (!student) {
-      console.log('[ScanQR] Student NOT FOUND for studentId:', studentId);
-      set({
-        lastScanResult: { success: false, message: `Invalid QR — student ${studentId} not found` },
-      });
+    // Guard: prevent duplicate concurrent scans
+    if (state.processingScan) {
+      console.log('[ScanQR] Already processing a scan, skipping');
       return;
     }
 
-    console.log('[ScanQR] Student found:', student.fullName, '| status:', student.attendanceStatus);
+    set({ processingScan: true });
 
-    const isDropStage = state.selectedTripStage.includes('drop');
-    const isAlreadyBoarded = student.attendanceStatus === 'on_bus' || student.attendanceStatus === 'picked_up';
-    const isAlreadyDropped = student.attendanceStatus === 'dropped';
-
-    if (!isDropStage && isAlreadyBoarded) {
-      set({
-        lastScanResult: { success: false, message: `${student.fullName} already boarded` },
-      });
-      return;
-    }
-
-    if (isDropStage && isAlreadyDropped) {
-      set({
-        lastScanResult: { success: false, message: `${student.fullName} already dropped` },
-      });
-      return;
-    }
-
-    if (isDropStage && !isAlreadyBoarded) {
-      set({
-        lastScanResult: { success: false, message: `${student.fullName} has not boarded yet` },
-      });
-      return;
-    }
-
-    const newStatus: StudentAttendanceStatus = isDropStage ? 'dropped' : 'on_bus';
-    const record: AttendanceRecord = {
-      id: `ATT-${Date.now()}`,
-      studentId: student.id,
-      vehicleId: state.selectedAttendanceVehicle,
-      routeId: state.selectedAttendanceRoute,
-      tripStage: state.selectedTripStage,
-      scannedAt: now,
-      scanType: isDropStage ? 'drop' : 'board',
-      status: newStatus,
-      scannedBy: 'qr_camera',
-    };
-
-    // Attempt to sync with Django backend (fire-and-forget)
-    attendanceAPI.scan(qrCode, state.selectedAttendanceVehicle, state.currentUser?.driverId || 'DRV-07', isDropStage ? 'drop' : 'pick').then(result => {
-      if (result.error) {
-        console.warn('[ScanQR] Backend sync failed:', result.error);
+    try {
+      // Parse format: SMARTBUS:STUDENT:STU-001
+      let studentId = '';
+      if (qrCode.startsWith('SMARTBUS:STUDENT:')) {
+        studentId = qrCode.replace('SMARTBUS:STUDENT:', '').trim();
       } else {
-        console.log('[ScanQR] Backend sync success:', result.data);
+        studentId = qrCode.trim();
       }
-    }).catch(() => {});
 
-    const event: AttendanceEvent = {
-      id: `AEVT-${Date.now()}`,
-      type: isDropStage ? 'dropped' : 'boarded',
-      studentId: student.id,
-      studentName: student.fullName,
-      vehicleId: state.selectedAttendanceVehicle,
-      message: isDropStage
-        ? `${student.fullName} dropped at school at ${now}`
-        : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
-      time: now,
-      severity: 'success',
-    };
+      console.log('[ScanQR] Extracted studentId:', studentId);
 
-    const activityLog: ActivityLog = {
-      id: `LOG-${Date.now()}`,
-      type: 'student',
-      message: isDropStage
-        ? `${student.fullName} dropped at school`
-        : `${student.fullName} boarded ${state.selectedAttendanceVehicle}`,
-      time: now,
-      icon: 'check',
-      severity: 'success',
-    };
+      const student = state.students.find(s => s.studentId === studentId);
 
-    set((s) => {
-      console.log('[ScanQR] SUCCESS: Updating state for', student.fullName, '→', newStatus);
-      return {
-        students: s.students.map(st => st.id === student.id ? {
-          ...st,
-          status: isDropStage ? 'dropped' as any : 'on_bus' as any,
-          attendanceStatus: newStatus,
-          lastBoardedAt: !isDropStage ? now : st.lastBoardedAt,
-          lastDroppedAt: isDropStage ? now : st.lastDroppedAt,
-          pickupTime: !isDropStage ? now : st.pickupTime,
-          dropTime: isDropStage ? now : st.dropTime,
-          attendanceHistory: [...st.attendanceHistory, record],
-        } : st),
-        attendanceRecords: [record, ...s.attendanceRecords],
-        attendanceEvents: [event, ...s.attendanceEvents],
-        activityLogs: [activityLog, ...s.activityLogs],
-        attendanceSession: s.attendanceSession ? {
-          ...s.attendanceSession,
-          boarded: !isDropStage ? s.attendanceSession.boarded + 1 : s.attendanceSession.boarded,
-          dropped: isDropStage ? s.attendanceSession.dropped + 1 : s.attendanceSession.dropped,
-          scannedStudentIds: [...s.attendanceSession.scannedStudentIds, student.id],
-        } : s.attendanceSession,
-        lastScannedStudentId: student.id,
-        lastScanResult: {
-          success: true,
-          message: isDropStage ? `${student.fullName} dropped successfully` : `${student.fullName} boarded successfully`,
-          student,
-        },
-        notifications: [{
-          id: `NOT-${Date.now()}`,
-          type: 'student' as const,
-          title: isDropStage ? 'Student Dropped' : 'Student Boarded',
-          message: isDropStage
-            ? `${student.fullName} dropped at school - ${state.selectedAttendanceVehicle}`
-            : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
-          time: now,
-          read: false,
-          severity: 'info' as const,
-          studentId: student.id,
-          vehicleId: state.selectedAttendanceVehicle,
-        }, ...s.notifications],
+      if (!student) {
+        console.log('[ScanQR] Student NOT FOUND for studentId:', studentId);
+        set({
+          lastScanResult: { success: false, message: `Invalid QR — student ${studentId} not found` },
+          processingScan: false,
+        });
+        return;
+      }
+
+      console.log('[ScanQR] Student found:', student.fullName, '| status:', student.attendanceStatus);
+
+      const isDropStage = state.selectedTripStage.includes('drop');
+      const isAlreadyBoarded = student.attendanceStatus === 'on_bus' || student.attendanceStatus === 'picked_up';
+      const isAlreadyDropped = student.attendanceStatus === 'dropped';
+
+      if (!isDropStage && isAlreadyBoarded) {
+        set({
+          lastScanResult: { success: false, message: `${student.fullName} already boarded` },
+          processingScan: false,
+        });
+        return;
+      }
+
+      if (isDropStage && isAlreadyDropped) {
+        set({
+          lastScanResult: { success: false, message: `${student.fullName} already dropped` },
+          processingScan: false,
+        });
+        return;
+      }
+
+      if (isDropStage && !isAlreadyBoarded) {
+        set({
+          lastScanResult: { success: false, message: `${student.fullName} has not boarded yet` },
+          processingScan: false,
+        });
+        return;
+      }
+
+      // Call Django API FIRST and WAIT for response
+      console.log('[ScanQR] Calling Django API...');
+      const result = await attendanceAPI.scan(
+        qrCode,
+        state.selectedAttendanceVehicle,
+        state.currentUser?.driverId || 'DRV-07',
+        isDropStage ? 'drop' : 'pick'
+      );
+
+      if (result.error) {
+        console.error('[ScanQR] API FAILED:', result.error);
+        set({
+          lastScanResult: { success: false, message: `Server error: ${result.error}` },
+          processingScan: false,
+        });
+        return;
+      }
+
+      console.log('[ScanQR] API SUCCESS:', result.data);
+
+      // Database confirmed — NOW update local state
+      const newStatus: StudentAttendanceStatus = isDropStage ? 'dropped' : 'on_bus';
+      const record: AttendanceRecord = {
+        id: `ATT-${Date.now()}`,
+        studentId: student.id,
+        vehicleId: state.selectedAttendanceVehicle,
+        routeId: state.selectedAttendanceRoute,
+        tripStage: state.selectedTripStage,
+        scannedAt: now,
+        scanType: isDropStage ? 'drop' : 'board',
+        status: newStatus,
+        scannedBy: 'qr_camera',
       };
-    });
+
+      const event: AttendanceEvent = {
+        id: `AEVT-${Date.now()}`,
+        type: isDropStage ? 'dropped' : 'boarded',
+        studentId: student.id,
+        studentName: student.fullName,
+        vehicleId: state.selectedAttendanceVehicle,
+        message: isDropStage
+          ? `${student.fullName} dropped at school at ${now}`
+          : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+        time: now,
+        severity: 'success',
+      };
+
+      const activityLog: ActivityLog = {
+        id: `LOG-${Date.now()}`,
+        type: 'student',
+        message: isDropStage
+          ? `${student.fullName} dropped at school`
+          : `${student.fullName} boarded ${state.selectedAttendanceVehicle}`,
+        time: now,
+        icon: 'check',
+        severity: 'success',
+      };
+
+      set((s) => {
+        console.log('[ScanQR] SUCCESS: Updating state for', student.fullName, '→', newStatus);
+        return {
+          students: s.students.map(st => st.id === student.id ? {
+            ...st,
+            status: isDropStage ? 'dropped' as any : 'on_bus' as any,
+            attendanceStatus: newStatus,
+            lastBoardedAt: !isDropStage ? now : st.lastBoardedAt,
+            lastDroppedAt: isDropStage ? now : st.lastDroppedAt,
+            pickupTime: !isDropStage ? now : st.pickupTime,
+            dropTime: isDropStage ? now : st.dropTime,
+            attendanceHistory: [...st.attendanceHistory, record],
+          } : st),
+          attendanceRecords: [record, ...s.attendanceRecords],
+          attendanceEvents: [event, ...s.attendanceEvents],
+          activityLogs: [activityLog, ...s.activityLogs],
+          attendanceSession: s.attendanceSession ? {
+            ...s.attendanceSession,
+            boarded: !isDropStage ? s.attendanceSession.boarded + 1 : s.attendanceSession.boarded,
+            dropped: isDropStage ? s.attendanceSession.dropped + 1 : s.attendanceSession.dropped,
+            scannedStudentIds: [...s.attendanceSession.scannedStudentIds, student.id],
+          } : s.attendanceSession,
+          lastScannedStudentId: student.id,
+          lastScanResult: {
+            success: true,
+            message: isDropStage ? `${student.fullName} dropped successfully` : `${student.fullName} boarded successfully`,
+            student,
+          },
+          processingScan: false,
+          notifications: [{
+            id: `NOT-${Date.now()}`,
+            type: 'student' as const,
+            title: isDropStage ? 'Student Dropped' : 'Student Boarded',
+            message: isDropStage
+              ? `${student.fullName} dropped at school - ${state.selectedAttendanceVehicle}`
+              : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+            time: now,
+            read: false,
+            severity: 'info' as const,
+            studentId: student.id,
+            vehicleId: state.selectedAttendanceVehicle,
+          }, ...s.notifications],
+        };
+      });
+    } catch (err: any) {
+      console.error('[ScanQR] UNEXPECTED ERROR:', err);
+      set({
+        lastScanResult: { success: false, message: `Network error: ${err.message || 'Unknown error'}` },
+        processingScan: false,
+      });
+    }
   },
 
   markStudentAbsent: (studentId: string) => {
