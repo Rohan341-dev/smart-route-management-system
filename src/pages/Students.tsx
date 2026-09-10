@@ -261,6 +261,42 @@ export default function Students() {
               </div>
 
               <div>
+                <h4 className="text-xs font-bold dark:text-gray-300 text-surface-600 mb-2 uppercase tracking-wider">Student Photo</h4>
+                <div className="flex items-center gap-4">
+                  <div className="w-20 h-20 rounded-xl dark:bg-navy-700/50 bg-surface-100 border-2 border-dashed dark:border-white/10 border-surface-300 flex items-center justify-center overflow-hidden">
+                    {photoPreview ? (
+                      <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera className="w-6 h-6 dark:text-gray-500 text-surface-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                    {photoPreview ? (
+                      <div className="space-y-1">
+                        <p className="text-[10px] text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Photo selected</p>
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[10px] px-2 py-1 rounded-lg dark:bg-navy-700 bg-surface-200 dark:text-gray-300 text-surface-600">Change</button>
+                          <button type="button" onClick={removePhoto} className="text-[10px] px-2 py-1 rounded-lg bg-red-500/10 text-red-400">Remove</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="text-[10px] px-3 py-1.5 rounded-lg dark:bg-navy-700 bg-surface-200 dark:text-gray-300 text-surface-600 flex items-center gap-1">
+                        <Camera className="w-3 h-3" /> Upload Photo
+                      </button>
+                    )}
+                    <p className="text-[9px] dark:text-gray-500 text-surface-400">JPG, PNG, WebP. Max 5MB.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
                 <h4 className="text-xs font-bold dark:text-gray-300 text-surface-600 mb-2 uppercase tracking-wider">Parent Information</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
