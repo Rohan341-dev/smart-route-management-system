@@ -803,6 +803,7 @@ export const useStore = create<AppState>((set, get) => ({
       parent_phone: data.parentPhone,
       assigned_bus: data.assignedBus,
       assigned_route: data.assignedRouteId,
+      photo: (data as any).photoFile,
     });
 
     if (result.error) {
@@ -812,6 +813,8 @@ export const useStore = create<AppState>((set, get) => ({
     const apiStudent = result.data;
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const studentId = apiStudent.student_id;
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+    const mediaBase = API_BASE.replace('/api', '');
 
     const newStudent: Student = {
       id: `STU-${String(apiStudent.id).padStart(3, '0')}`,
@@ -830,6 +833,7 @@ export const useStore = create<AppState>((set, get) => ({
       qrCode: `SMARTBUS:STUDENT:${studentId}`,
       qrId: `SMARTBUS:STUDENT:${studentId}`,
       qrEnabled: apiStudent.qr_enabled,
+      photo: apiStudent.photo ? (apiStudent.photo.startsWith('http') ? apiStudent.photo : `${mediaBase}${apiStudent.photo}`) : undefined,
       status: 'waiting',
       attendanceStatus: 'waiting',
       attendanceHistory: [],
