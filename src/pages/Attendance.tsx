@@ -254,9 +254,13 @@ export default function Attendance() {
                     }`}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-electric-600/20 flex items-center justify-center">
-                            <span className="text-xs font-bold text-electric-400">{s.fullName[0]}</span>
-                          </div>
+                          {s.photo ? (
+                            <img src={s.photo} alt={s.fullName} className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-electric-600/20 flex items-center justify-center">
+                              <span className="text-xs font-bold text-electric-400">{s.fullName[0]}</span>
+                            </div>
+                          )}
                           <p className="text-xs font-bold dark:text-white text-surface-900">{s.fullName}</p>
                         </div>
                       </td>

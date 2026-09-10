@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
-import { QrCode, X, Download, Printer } from 'lucide-react';
+import { QrCode, X, Download, Printer, User } from 'lucide-react';
 import { Student } from '../data/types';
 import { useStore } from '../store/useStore';
 
@@ -53,47 +53,50 @@ function QRModal({ student, onClose }: { student: Student; onClose: () => void }
     if (!printWindow) return;
     const qrCanvas = qrRef.current?.querySelector('canvas');
     const qrDataUrl = qrCanvas?.toDataURL('image/png') || '';
+    const photoHtml = student.photo
+      ? `<img src="${student.photo}" width="120" height="120" style="border-radius: 12px; object-fit: cover; border: 2px solid #e5e7eb;" />`
+      : `<div style="width:120px;height:120px;border-radius:12px;background:#f3f4f6;border:2px solid #e5e7eb;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:32px;">👤</div>`;
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>SMARTBUS - ${student.fullName} QR Card</title>
+        <title>SMARTBUS - ${student.fullName} ID Card</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
-          .card { background: white; border-radius: 16px; padding: 32px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.1); width: 350px; }
-          .header { margin-bottom: 16px; }
-          .brand { font-size: 18px; font-weight: 900; letter-spacing: 2px; color: #3b76ff; }
-          .subtitle { font-size: 11px; color: #6b7280; margin-top: 4px; }
-          .qr-container { background: white; border: 2px solid #e5e7eb; border-radius: 12px; padding: 16px; display: inline-block; margin: 16px 0; }
+          .card { background: white; border-radius: 16px; padding: 24px; text-align: center; box-shadow: 0 4px 24px rgba(0,0,0,0.1); width: 380px; }
+          .school-name { font-size: 14px; font-weight: 900; letter-spacing: 1px; color: #1e3a5f; text-transform: uppercase; }
+          .school-subtitle { font-size: 10px; color: #6b7280; margin-top: 2px; }
+          .photo-container { margin: 16px auto; }
           .student-name { font-size: 16px; font-weight: 700; color: #111827; margin-top: 12px; }
-          .student-id { font-size: 12px; color: #6b7280; }
-          .qr-id { font-size: 10px; color: #9ca3af; font-family: monospace; margin-top: 4px; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+          .student-id { font-size: 12px; color: #6b7280; font-family: monospace; }
+          .student-class { font-size: 11px; color: #6b7280; }
+          .qr-container { background: white; border: 2px solid #e5e7eb; border-radius: 12px; padding: 12px; display: inline-block; margin: 12px 0; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
           .info-box { background: #f9fafb; border-radius: 8px; padding: 8px; }
-          .info-label { font-size: 10px; color: #9ca3af; }
-          .info-value { font-size: 12px; font-weight: 700; color: #111827; }
-          .footer { margin-top: 16px; font-size: 9px; color: #d1d5db; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+          .info-label { font-size: 9px; color: #9ca3af; }
+          .info-value { font-size: 11px; font-weight: 700; color: #111827; }
+          .footer { margin-top: 12px; font-size: 9px; color: #d1d5db; border-top: 1px solid #e5e7eb; padding-top: 8px; }
           @media print { body { background: white; } .card { box-shadow: none; border: 1px solid #e5e7eb; } }
         </style>
       </head>
       <body>
         <div class="card">
-          <div class="header">
-            <div class="brand">SMARTBUS</div>
-            <div class="subtitle">Student Bus Attendance Card</div>
-          </div>
-          <div class="qr-container">
-            ${qrDataUrl ? `<img src="${qrDataUrl}" width="180" height="180" />` : '<div style="width:180px;height:180px;display:flex;align-items:center;justify-content:center;color:#9ca3af;">QR Code</div>'}
-          </div>
+          <div class="school-name">SAGARMATHA</div>
+          <div class="school-subtitle">SECONDARY SCHOOL</div>
+          <div class="photo-container">${photoHtml}</div>
           <div class="student-name">${student.fullName}</div>
-          <div class="student-id">Student ID: ${student.studentId}</div>
-          <div class="qr-id">${student.qrId}</div>
-          <div class="info-grid">
-            <div class="info-box"><div class="info-label">Bus</div><div class="info-value">${student.assignedVehicleId}</div></div>
-            <div class="info-box"><div class="info-label">Route</div><div class="info-value">${assignedRoute?.name || student.assignedRouteId}</div></div>
+          <div class="student-id">${student.studentId}</div>
+          <div class="student-class">Class: ${student.class}${student.section ? '-' + student.section : ''}</div>
+          <div class="qr-container">
+            ${qrDataUrl ? `<img src="${qrDataUrl}" width="150" height="150" />` : '<div style="width:150px;height:150px;display:flex;align-items:center;justify-content:center;color:#9ca3af;">QR Code</div>'}
           </div>
-          <div class="footer">SMARTBUS Student Attendance System</div>
+          <div class="info-grid">
+            <div class="info-box"><div class="info-label">Bus</div><div class="info-value">${student.assignedVehicleId || 'N/A'}</div></div>
+            <div class="info-box"><div class="info-label">Route</div><div class="info-value">${assignedRoute?.name || student.assignedRouteId || 'N/A'}</div></div>
+          </div>
+          <div class="footer">Scan for Bus Attendance</div>
         </div>
       </body>
       </html>
@@ -115,45 +118,57 @@ function QRModal({ student, onClose }: { student: Student; onClose: () => void }
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="dark:bg-navy-800 bg-white dark:border-white/10 border-surface-200 border rounded-2xl w-full max-w-sm shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b dark:border-white/5 border-surface-200">
-          <h3 className="text-sm font-bold dark:text-white text-surface-900">Student QR Card</h3>
+          <h3 className="text-sm font-bold dark:text-white text-surface-900">Student ID Card</h3>
           <button onClick={onClose} className="p-1 rounded-lg dark:hover:bg-white/10 hover:bg-surface-100 transition-all">
             <X className="w-4 h-4 dark:text-gray-400 text-surface-500" />
           </button>
         </div>
 
         <div className="p-6 flex flex-col items-center">
-          <div className="text-center mb-4">
-            <h4 className="text-xs font-black tracking-wider text-electric-400">SMARTBUS</h4>
-            <p className="text-[10px] dark:text-gray-400 text-surface-500">Student QR Attendance Card</p>
+          <div className="text-center mb-3">
+            <h4 className="text-sm font-black tracking-wider text-slate-800 dark:text-white">SAGARMATHA</h4>
+            <p className="text-[10px] dark:text-gray-400 text-surface-500 tracking-widest">SECONDARY SCHOOL</p>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl mb-4" ref={qrRef}>
+          {student.photo ? (
+            <img src={student.photo} alt={student.fullName} className="w-24 h-24 rounded-xl object-cover border-2 dark:border-white/10 border-surface-200 mb-3" />
+          ) : (
+            <div className="w-24 h-24 rounded-xl dark:bg-navy-700/50 bg-surface-100 border-2 dark:border-white/10 border-surface-200 flex items-center justify-center mb-3">
+              <User className="w-10 h-10 dark:text-gray-500 text-surface-400" />
+            </div>
+          )}
+
+          <div className="text-center space-y-0.5 mb-3">
+            <p className="text-sm font-bold dark:text-white text-surface-900">{student.fullName}</p>
+            <p className="text-xs dark:text-gray-400 text-surface-500 font-mono">{student.studentId}</p>
+            <p className="text-[10px] dark:text-gray-400 text-surface-500">Class: {student.class}{student.section ? '-' + student.section : ''}</p>
+          </div>
+
+          <div className="bg-white p-3 rounded-xl mb-3" ref={qrRef}>
             <QRCodeCanvas
               value={student.qrCode}
-              size={180}
+              size={150}
               level="H"
               includeMargin={false}
             />
           </div>
 
-          <div className="text-center space-y-1">
-            <p className="text-sm font-bold dark:text-white text-surface-900">{student.fullName}</p>
-            <p className="text-xs dark:text-gray-400 text-surface-500">Student ID: {student.studentId}</p>
-            <p className="text-[10px] dark:text-gray-400 text-surface-500">QR ID: {student.qrCode}</p>
-          </div>
+          <p className="text-[9px] dark:text-gray-500 text-surface-400 font-mono mb-3">{student.qrCode}</p>
 
-          <div className="w-full mt-4 grid grid-cols-2 gap-2 text-[10px]">
-            <div className="dark:bg-navy-700/50 bg-surface-100 rounded-lg p-2 text-center">
-              <p className="dark:text-gray-400 text-surface-500">Route</p>
-              <p className="dark:text-white text-surface-900 font-bold">{student.assignedRouteId}</p>
-            </div>
+          <div className="w-full grid grid-cols-2 gap-2 text-[10px]">
             <div className="dark:bg-navy-700/50 bg-surface-100 rounded-lg p-2 text-center">
               <p className="dark:text-gray-400 text-surface-500">Bus</p>
-              <p className="dark:text-white text-surface-900 font-bold">{student.assignedVehicleId}</p>
+              <p className="dark:text-white text-surface-900 font-bold">{student.assignedVehicleId || 'N/A'}</p>
+            </div>
+            <div className="dark:bg-navy-700/50 bg-surface-100 rounded-lg p-2 text-center">
+              <p className="dark:text-gray-400 text-surface-500">Route</p>
+              <p className="dark:text-white text-surface-900 font-bold">{assignedRoute?.name || student.assignedRouteId || 'N/A'}</p>
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4 w-full">
+          <p className="text-[9px] dark:text-gray-500 text-surface-400 mt-3">Scan for Bus Attendance</p>
+
+          <div className="flex gap-2 mt-3 w-full">
             <button onClick={handlePrint} className="flex-1 btn-primary text-[10px] py-2 flex items-center justify-center gap-1">
               <Printer className="w-3 h-3" /> Print
             </button>

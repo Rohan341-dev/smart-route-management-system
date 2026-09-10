@@ -325,14 +325,18 @@ export default function DriverDashboard() {
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {assignedStudents.map(student => (
                   <div key={student.id} className="flex items-center gap-3 p-3 rounded-xl dark:bg-navy-700/30 bg-surface-50">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
-                      student.attendanceStatus === 'on_bus' ? 'bg-emerald-500/20 text-emerald-400' :
-                      student.attendanceStatus === 'picked_up' ? 'bg-amber-500/20 text-amber-400' :
-                      student.attendanceStatus === 'dropped' ? 'bg-purple-500/20 text-purple-400' :
-                      'bg-gray-500/20 text-gray-400'
-                    }`}>
-                      {student.fullName[0]}
-                    </div>
+                    {student.photo ? (
+                      <img src={student.photo} alt={student.fullName} className="w-10 h-10 rounded-xl object-cover" />
+                    ) : (
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold ${
+                        student.attendanceStatus === 'on_bus' ? 'bg-emerald-500/20 text-emerald-400' :
+                        student.attendanceStatus === 'picked_up' ? 'bg-amber-500/20 text-amber-400' :
+                        student.attendanceStatus === 'dropped' ? 'bg-purple-500/20 text-purple-400' :
+                        'bg-gray-500/20 text-gray-400'
+                      }`}>
+                        {student.fullName[0]}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-bold dark:text-white text-surface-900 truncate">{student.fullName}</p>
                       <p className="text-[9px] dark:text-gray-400 text-surface-500">{student.studentId} - {student.class}-{student.section}</p>

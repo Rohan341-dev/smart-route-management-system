@@ -1,5 +1,5 @@
 import { useStore } from '../../store/useStore';
-import { Users, ArrowLeft, GraduationCap, Bus, Clock, CheckCircle } from 'lucide-react';
+import { Users, ArrowLeft, GraduationCap, Bus, Clock, CheckCircle, User } from 'lucide-react';
 
 export default function MyChildren() {
   const { currentUser, students, vehicles, routes, setCurrentPage } = useStore();
@@ -25,9 +25,13 @@ export default function MyChildren() {
           return (
             <div key={student.id} className="glass-card p-4">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-electric-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
-                  {student.fullName.split(' ').map(n => n[0]).join('')}
-                </div>
+                {student.photo ? (
+                  <img src={student.photo} alt={student.fullName} className="w-14 h-14 rounded-full object-cover" />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-electric-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                    {student.fullName.split(' ').map(n => n[0]).join('')}
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-bold dark:text-white text-surface-900">{student.fullName}</p>
                   <p className="text-[10px] dark:text-gray-400 text-surface-500">Class {student.class} - Section {student.section}</p>

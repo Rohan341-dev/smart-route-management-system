@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle, Camera } from 'lucide-react';
+import { GraduationCap, Search, Phone, MapPin, Bus, ChevronRight, QrCode, UserPlus, X, CheckCircle, Printer, AlertCircle, Camera, User } from 'lucide-react';
 import StudentQRCode from '../components/StudentQRCode';
 import { Student } from '../data/types';
 
@@ -374,9 +374,17 @@ export default function Students() {
               <h3 className="text-sm font-bold dark:text-white text-surface-900">Student Created Successfully</h3>
 
               <div className="text-center mt-4 mb-3">
-                <h4 className="text-xs font-black tracking-wider text-electric-400">SMARTBUS</h4>
-                <p className="text-[10px] dark:text-gray-400 text-surface-500">Student Bus Attendance</p>
+                <h4 className="text-sm font-black tracking-wider text-slate-800">SAGARMATHA</h4>
+                <p className="text-[10px] dark:text-gray-400 text-surface-500 tracking-widest">SECONDARY SCHOOL</p>
               </div>
+
+              {createdStudent.photo ? (
+                <img src={createdStudent.photo} alt={createdStudent.fullName} className="w-20 h-20 rounded-xl object-cover border-2 dark:border-white/10 border-surface-200 mb-3" />
+              ) : (
+                <div className="w-20 h-20 rounded-xl dark:bg-navy-700/50 bg-surface-100 border-2 dark:border-white/10 border-surface-200 flex items-center justify-center mb-3">
+                  <User className="w-8 h-8 dark:text-gray-500 text-surface-400" />
+                </div>
+              )}
 
               <div className="bg-white p-4 rounded-2xl mb-4">
                 <div className="w-[180px] h-[180px] flex items-center justify-center">
@@ -389,8 +397,8 @@ export default function Students() {
 
               <div className="text-center space-y-1">
                 <p className="text-sm font-bold dark:text-white text-surface-900">{createdStudent.fullName}</p>
-                <p className="text-xs dark:text-gray-400 text-surface-500">Student ID: {createdStudent.studentId}</p>
-                <p className="text-[10px] dark:text-gray-400 text-surface-500">QR ID: {createdStudent.qrId}</p>
+                <p className="text-xs dark:text-gray-400 text-surface-500">{createdStudent.studentId}</p>
+                <p className="text-[10px] dark:text-gray-400 text-surface-500">Class: {createdStudent.class}{createdStudent.section ? '-' + createdStudent.section : ''}</p>
               </div>
 
               <div className="w-full mt-4 grid grid-cols-2 gap-2 text-[10px]">
