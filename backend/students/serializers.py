@@ -20,7 +20,7 @@ class StudentSerializer(serializers.ModelSerializer):
             'parent', 'parent_name',
             'assigned_bus', 'assigned_bus_number',
             'assigned_route', 'assigned_route_name',
-            'qr_id', 'qr_enabled', 'attendance_status',
+            'qr_id', 'qr_enabled', 'photo', 'attendance_status',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['qr_id']
@@ -34,6 +34,7 @@ class CreateStudentSerializer(serializers.Serializer):
     parent_phone = serializers.CharField(max_length=20)
     assigned_bus = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
     assigned_route = serializers.CharField(max_length=50, required=False, allow_blank=True, allow_null=True)
+    photo = serializers.ImageField(required=False, allow_null=True)
 
     def _find_or_create_parent(self, parent_name, parent_phone):
         from accounts.models import User
@@ -89,6 +90,7 @@ class CreateStudentSerializer(serializers.Serializer):
         parent_phone = validated_data.pop('parent_phone')
         bus_value = validated_data.pop('assigned_bus', None)
         route_value = validated_data.pop('assigned_route', None)
+        photo = validated_data.pop('photo', None)
 
         parent = self._find_or_create_parent(parent_name, parent_phone)
         bus = self._resolve_bus(bus_value)
@@ -98,10 +100,14 @@ class CreateStudentSerializer(serializers.Serializer):
         next_num = (last_student.id + 1) if last_student else 1
         student_id = f"STU-{str(next_num).zfill(3)}"
 
-        return Student.objects.create(
+        student = Student(
             student_id=student_id,
             parent=parent,
             assigned_bus=bus,
             assigned_route=route,
             **validated_data,
         )
+        if photo:
+            student.photo = photo
+        student.save()
+        return student

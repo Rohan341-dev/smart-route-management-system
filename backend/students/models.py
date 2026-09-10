@@ -3,6 +3,11 @@ from django.db import models
 from django.conf import settings
 
 
+def student_photo_path(instance, filename):
+    ext = filename.split('.')[-1].lower()
+    return f"students/photos/{instance.student_id}.{ext}"
+
+
 class Student(models.Model):
     ATTENDANCE_CHOICES = (
         ('not.boarded', 'Not Boarded'),
@@ -38,6 +43,7 @@ class Student(models.Model):
     )
     qr_id = models.CharField(max_length=64, unique=True, default=uuid.uuid4)
     qr_enabled = models.BooleanField(default=True)
+    photo = models.ImageField(upload_to=student_photo_path, null=True, blank=True)
     attendance_status = models.CharField(
         max_length=15, choices=ATTENDANCE_CHOICES, default='not.boarded'
     )

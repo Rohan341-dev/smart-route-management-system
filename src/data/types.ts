@@ -122,6 +122,7 @@ export interface Student {
   qrCode: string;
   qrId: string;
   qrEnabled: boolean;
+  photo?: string;
   assignedVehicleId: string;
   assignedRouteId: string;
   attendanceStatus: StudentAttendanceStatus;

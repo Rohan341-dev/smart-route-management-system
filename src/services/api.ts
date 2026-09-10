@@ -77,14 +77,55 @@ export const studentsAPI = {
     parent_phone: string;
     assigned_bus?: string;
     assigned_route?: string;
-  }) => apiRequest<any>('/students/create/', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  }),
-  update: (id: string, data: any) => apiRequest<any>(`/students/${id}/update/`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  }),
+    photo?: File;
+  }) => {
+    const formData = new FormData();
+    formData.append('full_name', data.full_name);
+    formData.append('class_name', data.class_name);
+    if (data.section) formData.append('section', data.section);
+    formData.append('parent_name', data.parent_name);
+    formData.append('parent_phone', data.parent_phone);
+    if (data.assigned_bus) formData.append('assigned_bus', data.assigned_bus);
+    if (data.assigned_route) formData.append('assigned_route', data.assigned_route);
+    if (data.photo) formData.append('photo', data.photo);
+
+    const token = localStorage.getItem('smartbus-auth-token');
+    return fetch(`${API_BASE}/students/create/`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
+        return { data: null as any, error: err.detail || err.message || `HTTP ${res.status}` };
+      }
+      return { data: await res.json() };
+    }).catch((err) => ({ data: null as any, error: err.message || 'Network error' }));
+  },
+  update: (id: string, data: any) => {
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== null) {
+        if (data[key] instanceof File) {
+          formData.append(key, data[key]);
+        } else {
+          formData.append(key, String(data[key]));
+        }
+      }
+    });
+    const token = localStorage.getItem('smartbus-auth-token');
+    return fetch(`${API_BASE}/students/${id}/update/`, {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: 'Update failed' }));
+        return { data: null as any, error: err.detail || err.message || `HTTP ${res.status}` };
+      }
+      return { data: await res.json() };
+    }).catch((err) => ({ data: null as any, error: err.message || 'Network error' }));
+  },
   delete: (id: string) => apiRequest<void>(`/students/${id}/delete/`, {
     method: 'DELETE',
   }),

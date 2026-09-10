@@ -766,6 +766,8 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
     const apiStudents = result.data || [];
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+    const mediaBase = API_BASE.replace('/api', '');
     const students: Student[] = apiStudents.map((s: any) => ({
       id: `STU-${String(s.id).padStart(3, '0')}`,
       studentId: s.student_id,
@@ -783,6 +785,7 @@ export const useStore = create<AppState>((set, get) => ({
       qrCode: `SMARTBUS:STUDENT:${s.student_id}`,
       qrId: `SMARTBUS:STUDENT:${s.student_id}`,
       qrEnabled: s.qr_enabled,
+      photo: s.photo ? (s.photo.startsWith('http') ? s.photo : `${mediaBase}${s.photo}`) : undefined,
       status: 'waiting' as any,
       attendanceStatus: s.attendance_status || 'waiting' as any,
       attendanceHistory: [],
