@@ -33,7 +33,7 @@ import MyRoute from './pages/driver/MyRoute';
 import DriverProfile from './pages/driver/DriverProfile';
 
 function AdminApp() {
-  const { sidebarOpen, currentPage, demoModeActive, simulateBusMovement, sosAlerts } = useStore();
+  const { sidebarOpen, currentPage, demoModeActive, simulateBusMovement, sosAlerts, fetchStudents, fetchRoutes } = useStore();
   const activeSOS = sosAlerts.find(s => s.status === 'active' || s.status === 'escalating');
   const [isMobile, setIsMobile] = useState(false);
 
@@ -43,6 +43,11 @@ function AdminApp() {
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
   }, []);
+
+  useEffect(() => {
+    fetchStudents();
+    fetchRoutes();
+  }, [fetchStudents, fetchRoutes]);
 
   useEffect(() => {
     const interval = setInterval(() => {

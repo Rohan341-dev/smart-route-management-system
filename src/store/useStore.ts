@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Vehicle, Driver, Student, Route, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, UserStatus, TripStatus, StopStatus } from '../data/types';
+import { Vehicle, Driver, Student, Route, RouteStop, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, UserStatus, TripStatus, StopStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents, users as initialUsers } from '../data/mockData';
 import { attendanceAPI, studentsAPI, routesAPI } from '../services/api';
 
@@ -839,7 +839,7 @@ export const useStore = create<AppState>((set, get) => ({
         id: `NOT-${Date.now()}`,
         type: 'student' as const,
         title: 'Student Added',
-        message: `${newStudent.fullName} added successfully. QR: ${qrId}`,
+        message: `${newStudent.fullName} added successfully. QR: ${newStudent.qrCode}`,
         time: now,
         read: false,
         severity: 'info' as const,
