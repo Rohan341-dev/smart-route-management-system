@@ -5,11 +5,12 @@ import { Camera, CameraOff, RefreshCw, ScanLine, Zap } from 'lucide-react';
 interface QRScannerProps {
   onScan: (qrCode: string) => void;
   isActive: boolean;
+  onStatusChange?: (status: string) => void;
 }
 
 type CameraStatus = 'idle' | 'starting' | 'active' | 'denied' | 'unavailable' | 'error';
 
-export default function QRScanner({ onScan, isActive }: QRScannerProps) {
+export default function QRScanner({ onScan, isActive, onStatusChange }: QRScannerProps) {
   const [cameraStatus, setCameraStatus] = useState<CameraStatus>('idle');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -19,6 +20,10 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
   const lastScanRef = useRef<string>('');
   const scanDebounceRef = useRef(0);
   const mountedRef = useRef(true);
+
+  const updateStatus = useCallback((status: string) => {
+    onStatusChange?.(status);
+  }, [onStatusChange]);
 
   const stopScanner = useCallback(async () => {
     if (scannerRef.current) {
@@ -137,6 +142,10 @@ export default function QRScanner({ onScan, isActive }: QRScannerProps) {
       stopScanner();
     };
   }, [stopScanner]);
+
+  useEffect(() => {
+    updateStatus(cameraStatus.toUpperCase());
+  }, [cameraStatus, updateStatus]);
 
   useEffect(() => {
     if (!isActive && cameraStatus === 'active') {

@@ -12,6 +12,7 @@ class StudentSerializer(serializers.ModelSerializer):
     parent_name = serializers.CharField(
         source='parent.get_full_name', read_only=True, default=''
     )
+    photo = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = Student

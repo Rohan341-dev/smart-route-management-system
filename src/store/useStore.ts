@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Vehicle, Driver, Student, Route, RouteStop, DriverAlert, SOSAlert, Notification, Trip, ActivityLog, DriverMonitoringState, AttendanceRecord, AttendanceSession, AttendanceEvent, TripStage, StudentAttendanceStatus, DriverMonitoringStateType, User, UserRole, UserStatus, TripStatus, StopStatus } from '../data/types';
 import { vehicles as initialVehicles, drivers as initialDrivers, students as initialStudents, routes as initialRoutes, driverAlerts as initialAlerts, sosAlerts as initialSOS, notifications as initialNotifications, trips as initialTrips, activityLogs as initialLogs, attendanceEvents as initialAttendanceEvents, users as initialUsers } from '../data/mockData';
-import { attendanceAPI, studentsAPI, routesAPI } from '../services/api';
+import { attendanceAPI, studentsAPI, routesAPI, getMediaUrl } from '../services/api';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -572,6 +572,7 @@ export const useStore = create<AppState>((set, get) => ({
     const state = get();
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
+    console.log('[ScanQR] ===== START SCAN =====');
     console.log('[ScanQR] Raw QR:', qrCode);
 
     // Guard: prevent duplicate concurrent scans
@@ -591,74 +592,47 @@ export const useStore = create<AppState>((set, get) => ({
         studentId = qrCode.trim();
       }
 
-      console.log('[ScanQR] Extracted studentId:', studentId);
-
-      const student = state.students.find(s => s.studentId === studentId);
-
-      if (!student) {
-        console.log('[ScanQR] Student NOT FOUND for studentId:', studentId);
-        set({
-          lastScanResult: { success: false, message: `Invalid QR — student ${studentId} not found` },
-          processingScan: false,
-        });
-        return;
-      }
-
-      console.log('[ScanQR] Student found:', student.fullName, '| status:', student.attendanceStatus);
+      console.log('[ScanQR] Parsed studentId:', studentId);
+      console.log('[ScanQR] Trip stage:', state.selectedTripStage);
+      console.log('[ScanQR] Vehicle:', state.selectedAttendanceVehicle);
 
       const isDropStage = state.selectedTripStage.includes('drop');
-      const isAlreadyBoarded = student.attendanceStatus === 'on_bus' || student.attendanceStatus === 'picked_up';
-      const isAlreadyDropped = student.attendanceStatus === 'dropped';
+      const action = isDropStage ? 'drop' : 'pick';
 
-      if (!isDropStage && isAlreadyBoarded) {
-        set({
-          lastScanResult: { success: false, message: `${student.fullName} already boarded` },
-          processingScan: false,
-        });
-        return;
-      }
-
-      if (isDropStage && isAlreadyDropped) {
-        set({
-          lastScanResult: { success: false, message: `${student.fullName} already dropped` },
-          processingScan: false,
-        });
-        return;
-      }
-
-      if (isDropStage && !isAlreadyBoarded) {
-        set({
-          lastScanResult: { success: false, message: `${student.fullName} has not boarded yet` },
-          processingScan: false,
-        });
-        return;
-      }
-
-      // Call Django API FIRST and WAIT for response
-      console.log('[ScanQR] Calling Django API...');
+      // Send to Django API FIRST — Django is the source of truth
+      console.log('[ScanQR] Calling Django API — POST /api/attendance/scan/ ...');
       const result = await attendanceAPI.scan(
         qrCode,
         state.selectedAttendanceVehicle,
         state.currentUser?.driverId || 'DRV-07',
-        isDropStage ? 'drop' : 'pick'
+        action,
       );
 
       if (result.error) {
         console.error('[ScanQR] API FAILED:', result.error);
         set({
           lastScanResult: { success: false, message: `Server error: ${result.error}` },
-          processingScan: false,
         });
+        setTimeout(() => {
+          set({ processingScan: false });
+        }, 1500);
         return;
       }
 
-      console.log('[ScanQR] API SUCCESS:', result.data);
+      console.log('[ScanQR] API SUCCESS — database confirmed:', result.data);
 
       // Database confirmed — NOW update local state
+      const apiData = result.data as any;
+      const studentName = apiData?.student?.name || studentId;
+      const apiStudentId = apiData?.student?.id || studentId;
       const newStatus: StudentAttendanceStatus = isDropStage ? 'dropped' : 'on_bus';
+
+      // Find student in local state to get the full object (if available)
+      const localStudent = state.students.find(s => s.studentId === studentId || s.studentId === apiStudentId);
+
       const record: AttendanceRecord = {
         id: `ATT-${Date.now()}`,
-        studentId: student.id,
+        studentId: localStudent?.id || apiStudentId,
         vehicleId: state.selectedAttendanceVehicle,
         routeId: state.selectedAttendanceRoute,
         tripStage: state.selectedTripStage,
@@ -671,12 +645,12 @@ export const useStore = create<AppState>((set, get) => ({
       const event: AttendanceEvent = {
         id: `AEVT-${Date.now()}`,
         type: isDropStage ? 'dropped' : 'boarded',
-        studentId: student.id,
-        studentName: student.fullName,
+        studentId: localStudent?.id || apiStudentId,
+        studentName: localStudent?.fullName || studentName,
         vehicleId: state.selectedAttendanceVehicle,
         message: isDropStage
-          ? `${student.fullName} dropped at school at ${now}`
-          : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+          ? `${localStudent?.fullName || studentName} dropped at school at ${now}`
+          : `${localStudent?.fullName || studentName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
         time: now,
         severity: 'success',
       };
@@ -685,17 +659,17 @@ export const useStore = create<AppState>((set, get) => ({
         id: `LOG-${Date.now()}`,
         type: 'student',
         message: isDropStage
-          ? `${student.fullName} dropped at school`
-          : `${student.fullName} boarded ${state.selectedAttendanceVehicle}`,
+          ? `${localStudent?.fullName || studentName} dropped at school`
+          : `${localStudent?.fullName || studentName} boarded ${state.selectedAttendanceVehicle}`,
         time: now,
         icon: 'check',
         severity: 'success',
       };
 
       set((s) => {
-        console.log('[ScanQR] SUCCESS: Updating state for', student.fullName, '→', newStatus);
+        console.log('[ScanQR] SUCCESS: Updating state for', localStudent?.fullName || studentName, '→', newStatus);
         return {
-          students: s.students.map(st => st.id === student.id ? {
+          students: localStudent ? s.students.map(st => st.id === localStudent.id ? {
             ...st,
             status: isDropStage ? 'dropped' as any : 'on_bus' as any,
             attendanceStatus: newStatus,
@@ -704,7 +678,7 @@ export const useStore = create<AppState>((set, get) => ({
             pickupTime: !isDropStage ? now : st.pickupTime,
             dropTime: isDropStage ? now : st.dropTime,
             attendanceHistory: [...st.attendanceHistory, record],
-          } : st),
+          } : st) : s.students,
           attendanceRecords: [record, ...s.attendanceRecords],
           attendanceEvents: [event, ...s.attendanceEvents],
           activityLogs: [activityLog, ...s.activityLogs],
@@ -712,36 +686,47 @@ export const useStore = create<AppState>((set, get) => ({
             ...s.attendanceSession,
             boarded: !isDropStage ? s.attendanceSession.boarded + 1 : s.attendanceSession.boarded,
             dropped: isDropStage ? s.attendanceSession.dropped + 1 : s.attendanceSession.dropped,
-            scannedStudentIds: [...s.attendanceSession.scannedStudentIds, student.id],
+            scannedStudentIds: [...s.attendanceSession.scannedStudentIds, localStudent?.id || apiStudentId],
           } : s.attendanceSession,
-          lastScannedStudentId: student.id,
+          lastScannedStudentId: localStudent?.id || apiStudentId,
           lastScanResult: {
             success: true,
-            message: isDropStage ? `${student.fullName} dropped successfully` : `${student.fullName} boarded successfully`,
-            student,
+            message: isDropStage ? `${localStudent?.fullName || studentName} dropped successfully` : `${localStudent?.fullName || studentName} boarded successfully`,
+            student: localStudent,
           },
-          processingScan: false,
           notifications: [{
             id: `NOT-${Date.now()}`,
             type: 'student' as const,
             title: isDropStage ? 'Student Dropped' : 'Student Boarded',
             message: isDropStage
-              ? `${student.fullName} dropped at school - ${state.selectedAttendanceVehicle}`
-              : `${student.fullName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
+              ? `${localStudent?.fullName || studentName} dropped at school - ${state.selectedAttendanceVehicle}`
+              : `${localStudent?.fullName || studentName} boarded ${state.selectedAttendanceVehicle} at ${now}`,
             time: now,
             read: false,
             severity: 'info' as const,
-            studentId: student.id,
+            studentId: localStudent?.id || apiStudentId,
             vehicleId: state.selectedAttendanceVehicle,
           }, ...s.notifications],
         };
       });
+
+      // Debounce: wait 1.5s before allowing next scan
+      setTimeout(() => {
+        set({ processingScan: false });
+      }, 1500);
+
+      // Refresh students from Django to get updated attendance_status
+      console.log('[ScanQR] Refreshing students from Django...');
+      await get().fetchStudents();
+      console.log('[ScanQR] ===== SCAN COMPLETE =====');
     } catch (err: any) {
       console.error('[ScanQR] UNEXPECTED ERROR:', err);
       set({
         lastScanResult: { success: false, message: `Network error: ${err.message || 'Unknown error'}` },
-        processingScan: false,
       });
+      setTimeout(() => {
+        set({ processingScan: false });
+      }, 1500);
     }
   },
 
@@ -771,6 +756,29 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   clearLastScanResult: () => set({ lastScanResult: null }),
+
+  fetchAttendanceRecords: async () => {
+    const state = get();
+    const result = await attendanceAPI.list({
+      bus: state.selectedAttendanceVehicle,
+    });
+    if (result.error) {
+      console.error('Failed to fetch attendance records:', result.error);
+      return;
+    }
+    const records = (result.data || []).map((r: any) => ({
+      id: `ATT-${r.id}`,
+      studentId: `STU-${String(r.student).padStart(3, '0')}`,
+      vehicleId: r.bus_number || '',
+      routeId: r.route_name || '',
+      tripStage: r.trip_stage as TripStage,
+      scannedAt: r.boarding_time || r.drop_time || r.timestamp,
+      scanType: r.trip_stage === 'dropoff' ? 'drop' as const : 'board' as const,
+      status: r.status as StudentAttendanceStatus,
+      scannedBy: 'qr_camera' as const,
+    }));
+    set({ attendanceRecords: records });
+  },
 
   getStudentsOnBus: (vehicleId: string) => {
     return get().students.filter(s => s.assignedVehicleId === vehicleId && (s.attendanceStatus === 'on_bus' || s.attendanceStatus === 'picked_up'));
@@ -802,8 +810,6 @@ export const useStore = create<AppState>((set, get) => ({
       return;
     }
     const apiStudents = result.data || [];
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const mediaBase = API_BASE.replace('/api', '');
     const students: Student[] = apiStudents.map((s: any) => ({
       id: `STU-${String(s.id).padStart(3, '0')}`,
       studentId: s.student_id,
@@ -821,7 +827,7 @@ export const useStore = create<AppState>((set, get) => ({
       qrCode: `SMARTBUS:STUDENT:${s.student_id}`,
       qrId: `SMARTBUS:STUDENT:${s.student_id}`,
       qrEnabled: s.qr_enabled,
-      photo: s.photo ? (s.photo.startsWith('http') ? s.photo : `${mediaBase}${s.photo}`) : undefined,
+      photo: getMediaUrl(s.photo),
       status: 'waiting' as any,
       attendanceStatus: s.attendance_status || 'waiting' as any,
       attendanceHistory: [],
@@ -849,8 +855,6 @@ export const useStore = create<AppState>((set, get) => ({
     const apiStudent = result.data;
     const now = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     const studentId = apiStudent.student_id;
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-    const mediaBase = API_BASE.replace('/api', '');
 
     const newStudent: Student = {
       id: `STU-${String(apiStudent.id).padStart(3, '0')}`,
@@ -869,7 +873,7 @@ export const useStore = create<AppState>((set, get) => ({
       qrCode: `SMARTBUS:STUDENT:${studentId}`,
       qrId: `SMARTBUS:STUDENT:${studentId}`,
       qrEnabled: apiStudent.qr_enabled,
-      photo: apiStudent.photo ? (apiStudent.photo.startsWith('http') ? apiStudent.photo : `${mediaBase}${apiStudent.photo}`) : undefined,
+      photo: getMediaUrl(apiStudent.photo),
       status: 'waiting',
       attendanceStatus: 'waiting',
       attendanceHistory: [],

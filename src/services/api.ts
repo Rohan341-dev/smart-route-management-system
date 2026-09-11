@@ -1,5 +1,12 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
+export function getMediaUrl(path?: string | null): string | undefined {
+  if (!path) return undefined;
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  const mediaBase = API_BASE.replace('/api', '');
+  return `${mediaBase}${path}`;
+}
+
 interface APIResponse<T> {
   data: T;
   error?: string;

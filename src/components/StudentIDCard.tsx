@@ -5,6 +5,7 @@ import { QRCodeCanvas } from 'qrcode.react';
 import { X, Download, Printer, FileImage, FileText, Loader2 } from 'lucide-react';
 import { Student } from '../data/types';
 import { useStore } from '../store/useStore';
+import { getMediaUrl } from '../services/api';
 
 interface StudentIDCardProps {
   student: Student;
@@ -15,7 +16,10 @@ export default function StudentIDCard({ student, onClose }: StudentIDCardProps) 
   const cardRef = useRef<HTMLDivElement>(null);
   const { routes } = useStore();
   const [downloading, setDownloading] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const assignedRoute = routes.find(r => r.id === student.assignedRouteId);
+
+  const photoUrl = getMediaUrl(student.photo);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -117,11 +121,24 @@ export default function StudentIDCard({ student, onClose }: StudentIDCardProps) 
               <p className="text-[10px] text-gray-400 tracking-widest">SECONDARY SCHOOL</p>
             </div>
 
-            {student.photo ? (
-              <img src={student.photo} alt={student.fullName} className="w-20 h-20 rounded-xl object-cover border-2 border-gray-200 mx-auto mb-3" />
+            {photoUrl && !imgError ? (
+              <img
+                src={photoUrl}
+                alt={student.fullName}
+                className="w-20 h-20 rounded-xl object-cover border-2 border-gray-200 mx-auto mb-3"
+                onError={(e) => {
+                  console.error('[StudentIDCard] Photo failed to load:', photoUrl);
+                  setImgError(true);
+                }}
+                onLoad={() => {
+                  console.log('[StudentIDCard] Photo loaded OK:', photoUrl);
+                }}
+              />
             ) : (
-              <div className="w-20 h-20 rounded-xl bg-gray-100 border-2 border-gray-200 flex items-center justify-center mx-auto mb-3">
+              <div className="w-20 h-20 rounded-xl bg-gray-100 border-2 border-gray-200 flex flex-col items-center justify-center mx-auto mb-3">
                 <span className="text-3xl text-gray-400">👤</span>
+                {!photoUrl && <span className="text-[8px] text-gray-400 mt-1">No Photo</span>}
+                {imgError && <span className="text-[8px] text-red-400 mt-1">Failed to load</span>}
               </div>
             )}
 

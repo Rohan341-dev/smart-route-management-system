@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore';
 import {
   QrCode, ScanLine, Play, Square, Clock, Bus, Route,
   CheckCircle, XCircle, AlertTriangle, Search, Filter,
-  UserCheck, ChevronDown, Calendar
+  UserCheck, ChevronDown, Calendar, Bug, RefreshCw
 } from 'lucide-react';
 import QRScanner from '../components/QRScanner';
 import DemoQRScanner from '../components/DemoQRScanner';
@@ -11,19 +11,60 @@ import AttendanceSummary from '../components/AttendanceSummary';
 import AttendanceStatusBadge from '../components/AttendanceStatusBadge';
 import { TripStage } from '../data/types';
 
+interface DebugInfo {
+  camera: string;
+  scanner: string;
+  qrDetected: boolean;
+  rawValue: string;
+  parsedStudentId: string;
+  studentFound: boolean;
+  apiRequest: string;
+  apiStatus: string;
+  dbRecord: string;
+  uiState: string;
+}
+
 export default function Attendance() {
   const {
     vehicles, routes, students, attendanceSession, lastScanResult, attendanceEvents,
     selectedAttendanceVehicle, selectedAttendanceRoute, selectedTripStage,
     setSelectedAttendanceVehicle, setSelectedAttendanceRoute, setSelectedTripStage,
     startAttendanceSession, stopAttendanceSession, scanStudentQR, clearLastScanResult,
-    getStudentsOnBus, getBusOccupancy,
+    getStudentsOnBus, getBusOccupancy, fetchStudents, fetchRoutes,
   } = useStore();
 
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({
+    camera: 'IDLE',
+    scanner: 'IDLE',
+    qrDetected: false,
+    rawValue: '',
+    parsedStudentId: '',
+    studentFound: false,
+    apiRequest: 'NOT SENT',
+    apiStatus: '--',
+    dbRecord: '--',
+    uiState: 'WAITING',
+  });
+
+  // Sync students and routes from Django on mount
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        await Promise.all([fetchStudents(), fetchRoutes()]);
+      } catch (e) {
+        console.error('[Attendance] Failed to sync data:', e);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+    syncData();
+  }, []);
 
   const assignedStudents = students.filter(
     s => s.assignedVehicleId === selectedAttendanceVehicle && s.assignedRouteId === selectedAttendanceRoute
@@ -37,14 +78,50 @@ export default function Attendance() {
 
   const occupancy = getBusOccupancy(selectedAttendanceVehicle);
 
-  const handleScan = useCallback((qrCode: string) => {
-    scanStudentQR(qrCode);
+  const handleScan = useCallback(async (qrCode: string) => {
+    console.log('[Attendance] handleScan called with:', qrCode);
+
+    // Parse student ID for debug
+    let parsedId = qrCode;
+    if (qrCode.startsWith('SMARTBUS:STUDENT:')) {
+      parsedId = qrCode.replace('SMARTBUS:STUDENT:', '').trim();
+    }
+
+    const studentInList = students.find(s => s.studentId === parsedId);
+
+    setDebugInfo(prev => ({
+      ...prev,
+      qrDetected: true,
+      rawValue: qrCode,
+      parsedStudentId: parsedId,
+      studentFound: !!studentInList,
+      apiRequest: 'SENT',
+      apiStatus: 'PENDING...',
+      dbRecord: 'PENDING...',
+      uiState: 'PROCESSING...',
+    }));
+
+    await scanStudentQR(qrCode);
+
     const result = useStore.getState().lastScanResult;
     if (result?.success) {
       setScanSuccess(true);
       setTimeout(() => setScanSuccess(false), 2000);
+      setDebugInfo(prev => ({
+        ...prev,
+        apiStatus: '201 CREATED',
+        dbRecord: 'CREATED',
+        uiState: 'UPDATED',
+      }));
+    } else {
+      setDebugInfo(prev => ({
+        ...prev,
+        apiStatus: 'FAILED',
+        dbRecord: 'NOT CREATED',
+        uiState: 'ERROR',
+      }));
     }
-  }, [scanStudentQR]);
+  }, [scanStudentQR, students]);
 
   useEffect(() => {
     if (lastScanResult) {
@@ -185,7 +262,11 @@ export default function Attendance() {
               <ScanLine className="w-4 h-4 text-electric-400" />
               QR Camera Scanner
             </h3>
-            <QRScanner onScan={handleScan} isActive={!!attendanceSession?.isActive} />
+            <QRScanner
+              onScan={handleScan}
+              isActive={!!attendanceSession?.isActive}
+              onStatusChange={(status) => setDebugInfo(prev => ({ ...prev, camera: status, scanner: status === 'ACTIVE' ? 'RUNNING' : 'IDLE' }))}
+            />
           </div>
 
           {/* Demo Scanner */}
@@ -195,6 +276,89 @@ export default function Attendance() {
               Demo QR Scanner
             </h3>
             <DemoQRScanner onScan={handleScan} isActive={!!attendanceSession?.isActive} />
+          </div>
+
+          {/* Debug Panel */}
+          <div className="glass-card p-4">
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="w-full flex items-center justify-between text-xs font-bold dark:text-white text-surface-900"
+            >
+              <span className="flex items-center gap-2">
+                <Bug className="w-4 h-4 text-red-400" />
+                QR Scanner Debug
+              </span>
+              <span className="text-[10px] dark:text-gray-400 text-surface-500">{showDebug ? 'HIDE' : 'SHOW'}</span>
+            </button>
+            {showDebug && (
+              <div className="mt-3 space-y-1.5 text-[10px] font-mono">
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Camera:</span>
+                  <span className={debugInfo.camera === 'ACTIVE' ? 'text-emerald-400' : 'text-amber-400'}>{debugInfo.camera}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Scanner:</span>
+                  <span className={debugInfo.scanner === 'RUNNING' ? 'text-emerald-400' : 'text-amber-400'}>{debugInfo.scanner}</span>
+                </div>
+                <div className="border-t dark:border-white/5 border-surface-200 my-1" />
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">QR Detected:</span>
+                  <span className={debugInfo.qrDetected ? 'text-emerald-400' : 'text-gray-500'}>{debugInfo.qrDetected ? 'YES' : 'NO'}</span>
+                </div>
+                {debugInfo.rawValue && (
+                  <div className="flex justify-between">
+                    <span className="dark:text-gray-400 text-surface-500">Raw Value:</span>
+                    <span className="text-electric-400 truncate max-w-[180px]">{debugInfo.rawValue}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Parsed Student ID:</span>
+                  <span className="text-white font-bold">{debugInfo.parsedStudentId || '--'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Student Found:</span>
+                  <span className={debugInfo.studentFound ? 'text-emerald-400' : 'text-red-400'}>{debugInfo.studentFound ? 'YES' : 'NO'}</span>
+                </div>
+                <div className="border-t dark:border-white/5 border-surface-200 my-1" />
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">API Request:</span>
+                  <span className="text-white">{debugInfo.apiRequest}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">API Status:</span>
+                  <span className={debugInfo.apiStatus.includes('201') ? 'text-emerald-400' : debugInfo.apiStatus === 'FAILED' ? 'text-red-400' : 'text-amber-400'}>{debugInfo.apiStatus}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Database:</span>
+                  <span className={debugInfo.dbRecord === 'CREATED' ? 'text-emerald-400' : 'text-gray-500'}>{debugInfo.dbRecord}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">UI State:</span>
+                  <span className={debugInfo.uiState === 'UPDATED' ? 'text-emerald-400' : 'text-gray-500'}>{debugInfo.uiState}</span>
+                </div>
+                <div className="border-t dark:border-white/5 border-surface-200 my-1" />
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Students in Store:</span>
+                  <span className="text-white">{students.length}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="dark:text-gray-400 text-surface-500">Session Active:</span>
+                  <span className={attendanceSession?.isActive ? 'text-emerald-400' : 'text-red-400'}>{attendanceSession?.isActive ? 'YES' : 'NO'}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setDebugInfo({
+                      camera: 'IDLE', scanner: 'IDLE', qrDetected: false, rawValue: '',
+                      parsedStudentId: '', studentFound: false, apiRequest: 'NOT SENT',
+                      apiStatus: '--', dbRecord: '--', uiState: 'WAITING',
+                    });
+                  }}
+                  className="w-full mt-2 py-1.5 rounded-lg dark:bg-navy-700 bg-surface-200 dark:text-gray-300 text-surface-600 text-[10px] font-bold flex items-center justify-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> Reset Debug
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Bus Occupancy */}

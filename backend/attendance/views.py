@@ -27,7 +27,10 @@ class ListAttendanceView(generics.ListAPIView):
             qs = qs.filter(route_id=route_id)
         date = self.request.query_params.get('date')
         if date:
-            qs = qs.filter(timestamp__date=date)
+            qs = qs.filter(date=date)
+        student_id = self.request.query_params.get('student')
+        if student_id:
+            qs = qs.filter(student__student_id=student_id)
         return qs
 
 
@@ -42,6 +45,8 @@ class ScanStudentQRView(APIView):
         qr_data = serializer.validated_data['qr_data']
         action = serializer.validated_data['action']
 
+        print(f'[ScanQR] Django received — qr_data={qr_data}, action={action}')
+
         # Parse QR payload — extract studentId from format SMARTBUS:STUDENT:STU-001
         student_id = None
         qr_str = qr_data.strip()
@@ -55,6 +60,8 @@ class ScanStudentQRView(APIView):
             except (json.JSONDecodeError, TypeError, AttributeError):
                 student_id = qr_str
 
+        print(f'[ScanQR] Parsed student_id={student_id}')
+
         if not student_id:
             return Response(
                 {'error': 'Invalid QR code format'},
@@ -63,12 +70,17 @@ class ScanStudentQRView(APIView):
 
         # Find student by student_id
         try:
-            student = Student.objects.get(student_id=student_id, qr_enabled=True)
+            student = Student.objects.select_related('assigned_bus', 'assigned_route', 'parent').get(
+                student_id=student_id, qr_enabled=True,
+            )
         except Student.DoesNotExist:
+            print(f'[ScanQR] Student NOT FOUND: {student_id}')
             return Response(
                 {'error': f'Invalid or disabled QR code for student {student_id}'},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        print(f'[ScanQR] Student found: {student.full_name} (bus={student.assigned_bus})')
 
         # Derive bus from student's assigned bus
         bus = student.assigned_bus
@@ -80,6 +92,7 @@ class ScanStudentQRView(APIView):
 
         # Determine status, trip_stage, and time
         now = timezone.now()
+        today = now.date()
         if action == 'pick':
             new_status = 'picked_up'
             trip_stage = 'pickup'
@@ -87,15 +100,15 @@ class ScanStudentQRView(APIView):
             new_status = 'dropped'
             trip_stage = 'dropoff'
 
-        # Find or create today's attendance record for this student/bus/trip_stage
-        today = now.date()
+        # Find or create today's attendance record using unique_together fields
         record, created = AttendanceRecord.objects.get_or_create(
             student=student,
             bus=bus,
             trip_stage=trip_stage,
-            timestamp__date=today,
+            date=today,
             defaults={
                 'route': bus.assigned_route,
+                'driver': request.user if request.user.is_authenticated else None,
                 'status': new_status,
                 'method': 'qr',
                 'boarding_time': now if action == 'pick' else None,
@@ -111,6 +124,8 @@ class ScanStudentQRView(APIView):
             else:
                 record.drop_time = now
             record.save(update_fields=['status', 'boarding_time', 'drop_time', 'updated_at'])
+
+        print(f'[ScanQR] Attendance record {"CREATED" if created else "UPDATED"}: id={record.id}, status={new_status}')
 
         # Update student attendance_status
         student.attendance_status = new_status
@@ -142,13 +157,22 @@ class ScanStudentQRView(APIView):
                 bus=bus,
             )
 
-        return Response({
+        response_data = {
             'success': True,
             'student': {
                 'id': student.student_id,
                 'name': student.full_name,
             },
+            'attendance': {
+                'status': new_status,
+                'boarding_time': record.boarding_time.isoformat() if record.boarding_time else None,
+                'drop_time': record.drop_time.isoformat() if record.drop_time else None,
+            },
             'status': new_status,
             'message': f'Student {"picked up" if action == "pick" else "dropped"} successfully',
             'record': AttendanceRecordSerializer(record).data,
-        }, status=status.HTTP_201_CREATED)
+        }
+
+        print(f'[ScanQR] Returning success response: {response_data}')
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
